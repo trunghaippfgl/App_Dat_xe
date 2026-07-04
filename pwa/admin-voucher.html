@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Tạo Voucher - Xe Nhà</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-asphalt-900:#12161D;
+    --surface-800:#1C2129;
+    --surface-700:#262D38;
+    --border-steel:#3A4453;
+    --text-fog:#ECEFF3;
+    --text-muted:#8B93A1;
+    --text-dim:#5C6472;
+    --accent-amber:#F2A93B;
+    --route-green:#34C77B;
+    --route-green-dim:rgba(52,199,123,0.14);
+    --alert-red:#E5595D;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html, body{ height:100%; }
+  body{
+    font-family:'Be Vietnam Pro', sans-serif;
+    background:var(--bg-asphalt-900);
+    min-height:100vh;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+  }
+  .wrap{ width:100%; max-width:460px; padding:36px 22px 40px; }
+  .logo{ font-size:40px; text-align:center; margin-bottom:8px; }
+  h1{ font-size:21px; font-weight:800; color:var(--text-fog); text-align:center; }
+  .sub{ font-size:13px; color:var(--text-muted); text-align:center; margin-top:8px; margin-bottom:28px; line-height:1.55; }
+  .field-label{ font-size:11.5px; color:var(--text-muted); font-weight:600; margin-bottom:7px; display:block; margin-top:16px; }
+  .input-row{ background:var(--surface-800); border:1px solid var(--border-steel); border-radius:14px;
+    padding:13px 15px; display:flex; gap:8px; align-items:center; }
+  .input-row input{ flex:1; min-width:0; background:transparent; border:none; outline:none; color:var(--text-fog);
+    font-size:14.5px; font-family:inherit; }
+  .input-row input::placeholder{ color:var(--text-dim); }
+  .btn-small{ background:var(--surface-700); color:var(--text-fog); border:1px solid var(--border-steel);
+    font-weight:700; font-size:12.5px; padding:8px 14px; border-radius:10px; font-family:inherit; cursor:pointer; white-space:nowrap; }
+  .btn-full{ width:100%; background:var(--accent-amber); color:#1A1200; border:none; font-weight:700;
+    font-size:14.5px; padding:14px 0; border-radius:12px; font-family:inherit; cursor:pointer; margin-top:20px; }
+  .btn-full:disabled{ opacity:0.6; }
+  .found-box{ display:none; background:var(--route-green-dim); color:var(--route-green); border-radius:12px;
+    padding:12px 14px; font-size:13px; font-weight:600; margin-top:12px; }
+  .not-found-box{ display:none; background:rgba(229,89,93,0.14); color:var(--alert-red); border-radius:12px;
+    padding:12px 14px; font-size:13px; font-weight:600; margin-top:12px; }
+  .success-box{ display:none; background:var(--route-green-dim); color:var(--route-green); border-radius:14px;
+    padding:16px; text-align:center; font-size:13.5px; font-weight:600; line-height:1.5; margin-top:18px; }
+  .code-preview{ font-family:'JetBrains Mono', monospace; font-weight:700; color:var(--accent-amber); font-size:15px; }
+  fieldset{ border:none; opacity:0.4; pointer-events:none; }
+  fieldset.enabled{ opacity:1; pointer-events:auto; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="logo">🎁</div>
+  <h1>Tạo & gửi Voucher</h1>
+  <div class="sub">Dành cho quản lý · gửi ưu đãi tới khách hàng thân thiết</div>
+
+  <span class="field-label">Số điện thoại khách hàng</span>
+  <div class="input-row">
+    <input type="text" id="v-phone" placeholder="090 xxx xxxx">
+    <button class="btn-small" onclick="findCustomer()">Tìm khách</button>
+  </div>
+  <div class="found-box" id="v-found"></div>
+  <div class="not-found-box" id="v-not-found">Không tìm thấy khách hàng với số điện thoại này.</div>
+
+  <fieldset id="v-fieldset">
+    <span class="field-label">Mã voucher</span>
+    <div class="input-row"><input type="text" id="v-code" placeholder="VD: XENHA20" style="text-transform:uppercase;"></div>
+
+    <span class="field-label">Nội dung ưu đãi</span>
+    <div class="input-row"><input type="text" id="v-desc" placeholder="VD: Giảm 20.000đ cho chuyến tiếp theo"></div>
+
+    <button class="btn-full" id="v-submit" onclick="sendVoucher()">Gửi voucher cho khách</button>
+  </fieldset>
+
+  <div class="success-box" id="v-success">✓ Đã gửi voucher! Khách sẽ thấy thông báo và voucher trong mục Cá nhân.</div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, serverTimestamp, query, where, getDocs
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBb8uSsLuChx4OYONl2fFFFwDSbSncZBpI",
+    authDomain: "hainguyen-ffb25.firebaseapp.com",
+    projectId: "hainguyen-ffb25",
+    storageBucket: "hainguyen-ffb25.firebasestorage.app",
+    messagingSenderId: "837257334024",
+    appId: "1:837257334024:web:583b46747d823b4c83f0bd",
+    measurementId: "G-1CC6JB312T"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  let foundCustomer = null;
+
+  window.findCustomer = async function(){
+    const phone = document.getElementById('v-phone').value.trim();
+    const foundBox = document.getElementById('v-found');
+    const notFoundBox = document.getElementById('v-not-found');
+    const fieldset = document.getElementById('v-fieldset');
+    foundBox.style.display = 'none';
+    notFoundBox.style.display = 'none';
+    fieldset.classList.remove('enabled');
+    foundCustomer = null;
+    if (!phone) { alert('Bạn nhập số điện thoại trước nhé.'); return; }
+
+    try {
+      const q = query(collection(db, "customers"), where("phone", "==", phone));
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        notFoundBox.style.display = 'block';
+        return;
+      }
+      const docSnap = snapshot.docs[0];
+      foundCustomer = { id: docSnap.id, ...docSnap.data() };
+      foundBox.textContent = '✓ Tìm thấy: ' + (foundCustomer.name || 'Khách hàng');
+      foundBox.style.display = 'block';
+      fieldset.classList.add('enabled');
+    } catch (err) {
+      console.error(err);
+      alert('Có lỗi khi tìm khách hàng.');
+    }
+  };
+
+  window.sendVoucher = async function(){
+    if (!foundCustomer) { alert('Bạn tìm khách hàng trước nhé.'); return; }
+    const btn = document.getElementById('v-submit');
+    const code = document.getElementById('v-code').value.trim().toUpperCase();
+    const desc = document.getElementById('v-desc').value.trim();
+    if (!code) { alert('Bạn nhập mã voucher trước nhé.'); return; }
+    if (!desc) { alert('Bạn nhập nội dung ưu đãi trước nhé.'); return; }
+
+    btn.textContent = 'Đang gửi...';
+    btn.disabled = true;
+
+    try {
+      await addDoc(collection(db, "vouchers"), {
+        customerId: foundCustomer.id,
+        code: code,
+        description: desc,
+        status: 'active',
+        createdAt: serverTimestamp()
+      });
+      await addDoc(collection(db, "messages"), {
+        threadId: foundCustomer.id,
+        sender: 'them',
+        senderName: 'Quản lý',
+        text: '🎁 Bạn vừa nhận được ưu đãi mới: ' + desc + ' (mã: ' + code + '). Xem trong mục Cá nhân > Voucher khuyến mãi nhé!',
+        createdAt: serverTimestamp()
+      });
+      document.getElementById('v-code').value = '';
+      document.getElementById('v-desc').value = '';
+      document.getElementById('v-success').style.display = 'block';
+    } catch (err) {
+      console.error('Không gửi được voucher:', err);
+      alert('Có lỗi khi gửi voucher.');
+    }
+    btn.textContent = 'Gửi voucher cho khách';
+    btn.disabled = false;
+  };
+</script>
+
+</body>
+</html>
