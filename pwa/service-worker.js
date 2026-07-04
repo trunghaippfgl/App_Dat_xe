@@ -1,7 +1,5 @@
-const CACHE_NAME = 'xe-nha-v1';
+const CACHE_NAME = 'xe-nha-v2';
 const FILES_TO_CACHE = [
-  './',
-  './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
@@ -24,7 +22,24 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  const isHtmlRequest = req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html');
+
+  if (isHtmlRequest) {
+    // Network-first for pages, so code updates show up right away.
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, res.clone()));
+          return res;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // Cache-first for static assets (icons, manifest) since they rarely change.
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    caches.match(req).then((cached) => cached || fetch(req))
   );
 });
