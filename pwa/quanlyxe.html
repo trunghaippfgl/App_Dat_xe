@@ -199,6 +199,7 @@
     query, where, orderBy, onSnapshot, limit, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBb8uSsLuChx4OYONl2fFFFwDSbSncZBpI",
@@ -212,6 +213,8 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const messaging = getMessaging(app);
+  const VAPID_KEY = "BHZahFM6YdPRj7uA1b6FgNh7UIegA_5nfu2sTIShQrWnRSY1UuRTDAsscUnmCR4vVNv6YAOnoVzNT5dcbhcTJzk";
 
   function escapeHtml(str){
     const div = document.createElement('div');
@@ -238,35 +241,48 @@
     document.getElementById('tab-' + name).classList.add('active');
   };
 
-  /* ---------- NOTIFICATIONS ---------- */
-  let notifEnabled = false;
+  /* ---------- NOTIFICATIONS (real push via FCM) ---------- */
   window.enableNotifications = function(){
     if (!('Notification' in window)) { alert('Trình duyệt này không hỗ trợ thông báo.'); return; }
+    const btn = document.getElementById('notif-btn');
+    btn.textContent = 'Đang bật...';
+
     Notification.requestPermission().then((perm) => {
-      if (perm === 'granted') {
-        notifEnabled = true;
-        const btn = document.getElementById('notif-btn');
-        btn.textContent = '✓ Đã bật thông báo';
-        btn.classList.add('on');
-      } else {
+      if (perm !== 'granted') {
         alert('Bạn chưa cho phép thông báo. Có thể bật lại trong cài đặt trình duyệt.');
+        btn.textContent = '🔔 Bật thông báo';
+        return;
       }
+      navigator.serviceWorker.register('firebase-messaging-sw.js').then((registration) => {
+        getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration })
+          .then((token) => {
+            if (!token) {
+              alert('Không lấy được mã thông báo, thử lại nhé.');
+              btn.textContent = '🔔 Bật thông báo';
+              return;
+            }
+            addDoc(collection(db, "adminTokens"), { token: token, createdAt: serverTimestamp() })
+              .then(() => {
+                btn.textContent = '✓ Đã bật thông báo';
+                btn.classList.add('on');
+              });
+          })
+          .catch((err) => {
+            console.error('FCM token error:', err);
+            alert('Có lỗi khi đăng ký thông báo: ' + err.message);
+            btn.textContent = '🔔 Bật thông báo';
+          });
+      });
     });
   };
-  function notify(title, body){
-    if (!notifEnabled || document.visibilityState === 'visible') return;
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistration().then((reg) => {
-        if (reg) {
-          reg.showNotification(title, { body: body, icon: 'admin-icon-192.png' });
-        } else {
-          try { new Notification(title, { body: body, icon: 'admin-icon-192.png' }); } catch (e) { console.error('Notify error:', e); }
-        }
-      });
-    } else {
-      try { new Notification(title, { body: body, icon: 'admin-icon-192.png' }); } catch (e) { console.error('Notify error:', e); }
-    }
-  }
+
+  // Foreground messages: FCM doesn't auto-show a system notification while the tab is open,
+  // so show a simple in-page alert instead.
+  onMessage(messaging, (payload) => {
+    const title = (payload.notification && payload.notification.title) || 'Thông báo mới';
+    const body = (payload.notification && payload.notification.body) || '';
+    alert(title + '\n' + body);
+  });
 
   let firstBookingLoad = true;
   let firstMessageLoad = true;
@@ -335,16 +351,6 @@
     onSnapshot(q, (snapshot) => {
       allBookings = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       renderBookings();
-
-      if (!firstBookingLoad && snapshot.docChanges().length > 0) {
-        const added = snapshot.docChanges().find(c => c.type === 'added');
-        if (added && added.doc.id !== lastSeenBookingId) {
-          const b = added.doc.data();
-          notify('Đơn đặt xe mới', (b.customerName || 'Khách') + ': ' + (b.pickup || '') + ' → ' + (b.dropoff || ''));
-        }
-      }
-      if (snapshot.docs.length > 0) lastSeenBookingId = snapshot.docs[0].id;
-      firstBookingLoad = false;
     });
   }
 
@@ -410,22 +416,6 @@
       });
     } catch (err) { console.error(err); alert('Không gửi được tin nhắn.'); }
   };
-
-  function listenForNewCustomerMessages(){
-    const q = query(collection(db, "messages"), orderBy("createdAt", "desc"), limit(1));
-    onSnapshot(q, (snapshot) => {
-      if (snapshot.empty) return;
-      const docSnap = snapshot.docs[0];
-      if (!firstMessageLoad && docSnap.id !== lastSeenMessageId) {
-        const m = docSnap.data();
-        if (m.sender === 'me') {
-          notify('Tin nhắn mới từ ' + (m.senderName || 'khách'), m.text || '');
-        }
-      }
-      lastSeenMessageId = docSnap.id;
-      firstMessageLoad = false;
-    });
-  }
 
   /* ---------- DRIVERS ---------- */
   function listenForDrivers(){
@@ -512,7 +502,6 @@
   }
 
   listenForAllBookings();
-  listenForNewCustomerMessages();
   listenForDrivers();
   listenForCustomers();
 </script>
