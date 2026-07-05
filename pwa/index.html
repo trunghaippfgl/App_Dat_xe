@@ -575,7 +575,11 @@
               </div>
             </div>
             <button class="btn-full" id="submit-request-btn" onclick="submitBookingRequest()">Gửi yêu cầu thỏa thuận giá</button>
+            <div class="hint-line" id="fixed-price-hint" style="display:none; color:var(--route-green); font-weight:700;"></div>
             <div class="hint-line">Giá cho các tuyến đi xa do tài xế và khách tự thỏa thuận qua trò chuyện</div>
+            <div class="quick-chip-row" style="margin-top:10px;">
+              <div class="quick-chip" onclick="estimateFareByDistance()">📏 Ước tính giá theo km</div>
+            </div>
           </div>
 
         </div>
@@ -583,12 +587,17 @@
 
       <!-- SCREEN: CHAT LIST -->
       <div class="screen" id="screen-chats">
-        <div class="thread-header">
-          <div class="avatar" style="width:38px;height:38px;font-size:14px;">A</div>
-          <div>
-            <div class="thread-title">Quản lý</div>
-            <div class="thread-sub">Nhắn tin đặt xe & thỏa thuận giá</div>
+        <div class="thread-header" style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div class="avatar" style="width:38px;height:38px;font-size:14px;">A</div>
+            <div>
+              <div class="thread-title">Quản lý</div>
+              <div class="thread-sub">Nhắn tin đặt xe & thỏa thuận giá</div>
+            </div>
           </div>
+          <a href="#" id="call-admin-btn" style="display:none; text-decoration:none;">
+            <div class="round-btn call">📞</div>
+          </a>
         </div>
         <div class="thread-scroll">
           <div class="empty-state" id="admin-empty">Chưa có tin nhắn nào. Nhắn gì đó để bắt đầu nhé!</div>
@@ -633,7 +642,30 @@
             <div class="quick-chip" style="margin-top:14px; display:inline-block;">📍 Xem điểm đón trên bản đồ</div>
           </a>
 
+          <div class="driver-row" id="detail-driver-row" style="display:none; margin-top:14px;">
+            <div class="driver-avatar" id="detail-driver-avatar" style="width:44px;height:44px;"></div>
+            <div class="info">
+              <div class="driver-name" id="detail-driver-name"></div>
+              <div class="driver-rating" id="detail-driver-car"></div>
+            </div>
+            <div class="actions">
+              <a href="#" id="detail-driver-call" style="text-decoration:none;"><div class="round-btn call">📞</div></a>
+            </div>
+          </div>
+
           <div class="hint-line" style="margin-top:14px;">Admin sẽ liên hệ để xác nhận giờ đón chính xác trước khi khởi hành.</div>
+
+          <div id="detail-rating-section" style="display:none; margin-top:18px;">
+            <div class="section-label">Đánh giá chuyến đi</div>
+            <div id="detail-rating-input">
+              <div style="font-size:26px; letter-spacing:6px; margin-bottom:10px;" id="detail-star-picker">
+                <span data-star="1" onclick="setRatingStars(1)">☆</span><span data-star="2" onclick="setRatingStars(2)">☆</span><span data-star="3" onclick="setRatingStars(3)">☆</span><span data-star="4" onclick="setRatingStars(4)">☆</span><span data-star="5" onclick="setRatingStars(5)">☆</span>
+              </div>
+              <div class="onboard-input-row"><input type="text" id="rating-comment-input" placeholder="Nhận xét (tuỳ chọn)"></div>
+              <button class="btn-full" onclick="submitRating()">Gửi đánh giá</button>
+            </div>
+            <div id="detail-rating-display" style="display:none; font-size:15px; color:var(--accent-amber); font-weight:700;"></div>
+          </div>
 
           <div class="quick-chip-row" style="margin-top:20px;">
             <div class="quick-chip" onclick="showTab('chats')">💬 Nhắn tin với quản lý</div>
@@ -981,8 +1013,69 @@
       mapLink.style.display = 'none';
     }
 
+    const driverRow = document.getElementById('detail-driver-row');
+    if (el.dataset.drivername) {
+      driverRow.style.display = 'flex';
+      document.getElementById('detail-driver-avatar').textContent = el.dataset.drivername.charAt(0);
+      document.getElementById('detail-driver-name').textContent = el.dataset.drivername;
+      document.getElementById('detail-driver-car').textContent = el.dataset.drivercar || '';
+      document.getElementById('detail-driver-call').href = el.dataset.driverphone ? ('tel:' + el.dataset.driverphone) : '#';
+    } else {
+      driverRow.style.display = 'none';
+    }
+
+    const ratingSection = document.getElementById('detail-rating-section');
+    const ratingInput = document.getElementById('detail-rating-input');
+    const ratingDisplay = document.getElementById('detail-rating-display');
+    if (el.dataset.status === 'done') {
+      ratingSection.style.display = 'block';
+      if (el.dataset.rating) {
+        ratingInput.style.display = 'none';
+        ratingDisplay.style.display = 'block';
+        ratingDisplay.textContent = '★'.repeat(parseInt(el.dataset.rating)) + '☆'.repeat(5 - parseInt(el.dataset.rating)) +
+          (el.dataset.ratingcomment ? (' — ' + el.dataset.ratingcomment) : '');
+      } else {
+        ratingInput.style.display = 'block';
+        ratingDisplay.style.display = 'none';
+        selectedRatingStars = 0;
+        updateStarPickerUI();
+        document.getElementById('rating-comment-input').value = '';
+      }
+    } else {
+      ratingSection.style.display = 'none';
+    }
+
     showAll();
     document.getElementById('screen-trip-detail').classList.add('active');
+  }
+  let selectedRatingStars = 0;
+  function updateStarPickerUI(){
+    document.querySelectorAll('#detail-star-picker span').forEach((el) => {
+      const n = parseInt(el.dataset.star);
+      el.textContent = n <= selectedRatingStars ? '★' : '☆';
+    });
+  }
+  function setRatingStars(n){
+    selectedRatingStars = n;
+    updateStarPickerUI();
+  }
+  async function submitRating(){
+    if (!selectedRatingStars) { alert('Bạn chọn số sao trước nhé.'); return; }
+    if (!currentDetailBookingId) return;
+    const comment = document.getElementById('rating-comment-input').value.trim();
+    const ready = await waitForFirebaseReady();
+    if (ready && window.submitTripRating) {
+      try {
+        await window.submitTripRating(currentDetailBookingId, selectedRatingStars, comment);
+        document.getElementById('detail-rating-input').style.display = 'none';
+        const display = document.getElementById('detail-rating-display');
+        display.style.display = 'block';
+        display.textContent = '★'.repeat(selectedRatingStars) + '☆'.repeat(5 - selectedRatingStars) + (comment ? (' — ' + comment) : '');
+      } catch (err) {
+        console.error('Không gửi được đánh giá:', err);
+        alert('Có lỗi khi gửi đánh giá.');
+      }
+    }
   }
   function closeTripDetail(){
     closeThread();
@@ -1205,6 +1298,7 @@
     if (ready && window.createBookingInFirestore) {
       try {
         const mapUrl = lastGpsCoords ? ('https://www.google.com/maps?q=' + lastGpsCoords.lat + ',' + lastGpsCoords.lon) : '';
+        const fixed = window.getFixedPrice ? window.getFixedPrice(pickup, dropoff) : null;
         const newId = await window.createBookingInFirestore({
           customerId: customerId,
           customerName: customerName,
@@ -1213,7 +1307,8 @@
           date: date,
           time: time,
           type: 'thoa_thuan',
-          status: 'requested',
+          status: fixed && fixed.price ? 'confirmed' : 'requested',
+          price: fixed && fixed.price ? fixed.price : '',
           pickupLat: lastGpsCoords ? lastGpsCoords.lat : null,
           pickupLng: lastGpsCoords ? lastGpsCoords.lon : null,
           pickupMapUrl: mapUrl
@@ -1236,10 +1331,46 @@
   function fillRoute(pickup, drop){
     document.getElementById('pickup-text').value = pickup;
     document.getElementById('dropoff-text').value = drop;
+    checkFixedPriceHint(pickup, drop);
+  }
+  function checkFixedPriceHint(pickup, drop){
+    const hintEl = document.getElementById('fixed-price-hint');
+    const fixed = window.getFixedPrice ? window.getFixedPrice(pickup, drop) : null;
+    if (fixed && fixed.price) {
+      hintEl.textContent = '💰 Giá cố định cho tuyến này: ' + fixed.price;
+      hintEl.style.display = 'block';
+    } else {
+      hintEl.style.display = 'none';
+    }
+  }
+  async function estimateFareByDistance(){
+    const pickup = document.getElementById('pickup-text').value.trim();
+    const dropoff = document.getElementById('dropoff-text').value.trim();
+    if (!lastGpsCoords) { alert('Bạn cần bấm 📍 lấy vị trí hiện tại trước để ước tính theo km.'); return; }
+    if (!dropoff) { alert('Bạn nhập điểm đến trước nhé.'); return; }
+    const rate = (window.getAppSettings && window.getAppSettings().ratePerKm) || 0;
+    if (!rate) { alert('Admin chưa thiết lập đơn giá/km, chưa ước tính được.'); return; }
+    try {
+      const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(dropoff) + '&limit=1');
+      const data = await res.json();
+      if (!data || !data[0]) { alert('Không xác định được vị trí điểm đến để tính khoảng cách.'); return; }
+      const lat2 = parseFloat(data[0].lat), lon2 = parseFloat(data[0].lon);
+      const R = 6371;
+      const dLat = (lat2 - lastGpsCoords.lat) * Math.PI / 180;
+      const dLon = (lon2 - lastGpsCoords.lon) * Math.PI / 180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(lastGpsCoords.lat*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+      const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const estimate = Math.round(dist * rate / 1000) * 1000;
+      alert('📏 Khoảng cách ước tính: ' + dist.toFixed(1) + ' km\n💰 Giá ước tính: ' + estimate.toLocaleString('vi-VN') + 'đ\n\n(Đây chỉ là ước tính, giá thật sẽ do tài xế xác nhận qua chat)');
+    } catch (err) {
+      console.error(err);
+      alert('Có lỗi khi tính khoảng cách, thử lại nhé.');
+    }
   }
   function useCustomRoute(){
     document.getElementById('dropoff-text').value = '';
     document.getElementById('dropoff-text').focus();
+    document.getElementById('fixed-price-hint').style.display = 'none';
   }
   function closeThread(){
     showAll();
@@ -1329,6 +1460,7 @@
       time: data.time || '',
       type: data.type || 'thoa_thuan',
       status: data.status || 'requested',
+      price: data.price || '',
       pickupLat: data.pickupLat || null,
       pickupLng: data.pickupLng || null,
       pickupMapUrl: data.pickupMapUrl || '',
@@ -1354,6 +1486,44 @@
       price: price || '',
       updatedAt: serverTimestamp()
     });
+  };
+
+  window.submitTripRating = async function (bookingId, stars, comment) {
+    await updateDoc(doc(db, "bookings", bookingId), {
+      rating: stars,
+      ratingComment: comment || ''
+    });
+  };
+
+  let appSettings = { adminPhone: '', ratePerKm: 0 };
+  function listenForSettings(){
+    onSnapshot(doc(db, "settings", "general"), (snap) => {
+      appSettings = snap.data() || { adminPhone: '', ratePerKm: 0 };
+      const callBtn = document.getElementById('call-admin-btn');
+      if (callBtn) {
+        if (appSettings.adminPhone) {
+          callBtn.href = 'tel:' + appSettings.adminPhone;
+          callBtn.style.display = 'block';
+        } else {
+          callBtn.style.display = 'none';
+        }
+      }
+    });
+  }
+  window.getAppSettings = function(){ return appSettings; };
+
+  let routePricesCache = {};
+  function routeKeyFor(a, b){
+    return (a + '_' + b).replace(/\s+/g, '');
+  }
+  function listenForRoutePrices(){
+    onSnapshot(collection(db, "routePrices"), (snap) => {
+      routePricesCache = {};
+      snap.forEach((d) => { routePricesCache[d.id] = d.data(); });
+    });
+  }
+  window.getFixedPrice = function(a, b){
+    return routePricesCache[routeKeyFor(a, b)] || routePricesCache[routeKeyFor(b, a)] || null;
   };
 
   window.addAddressToFirestore = async function (customerId, label, detail) {
@@ -1485,7 +1655,12 @@
           ' data-time="' + escapeHtml(b.time || '') + '"' +
           ' data-price="' + escapeHtml(b.price || '') + '"' +
           ' data-status="' + escapeHtml(b.status || 'requested') + '"' +
-          ' data-mapurl="' + escapeHtml(b.pickupMapUrl || '') + '">' +
+          ' data-mapurl="' + escapeHtml(b.pickupMapUrl || '') + '"' +
+          ' data-drivername="' + escapeHtml(b.driverName || '') + '"' +
+          ' data-drivercar="' + escapeHtml(b.driverCar || '') + '"' +
+          ' data-driverphone="' + escapeHtml(b.driverPhone || '') + '"' +
+          ' data-rating="' + (b.rating || '') + '"' +
+          ' data-ratingcomment="' + escapeHtml(b.ratingComment || '') + '">' +
           '<div class="booking-top"><div><div class="booking-name">' + escapeHtml(b.customerName || 'Khách') +
           '</div><div class="booking-time">' + escapeHtml(b.date || '') + ' · ' + escapeHtml(b.time || '') + '</div></div>' +
           '<div class="status-badge ' + badge.cls + '">' + badge.text + '</div></div>' +
@@ -1623,6 +1798,9 @@
   }
   window.listenForCustomerExtras = listenForCustomerExtras;
 
+
+  listenForSettings();
+  listenForRoutePrices();
 
   const existingCustomerId = localStorage.getItem('xn_customer_id');
   if (existingCustomerId) {

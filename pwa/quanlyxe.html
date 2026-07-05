@@ -93,7 +93,7 @@
   .lookup-row input{ flex:1; background:var(--surface-800); border:1px solid var(--border-steel); border-radius:12px;
     padding:11px 14px; color:var(--text-fog); font-size:13.5px; font-family:inherit; outline:none; }
   .chat-header{ padding:12px 16px; border-bottom:1px solid var(--border-steel); flex-shrink:0; display:none; }
-  .chat-header.on{ display:block; }
+  .chat-header.on{ display:flex; align-items:center; justify-content:space-between; }
   .chat-header .name{ font-size:14.5px; font-weight:700; }
   .chat-header .phone{ font-size:11.5px; color:var(--text-muted); margin-top:1px; }
   .thread-scroll{ flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; }
@@ -139,6 +139,7 @@
     <div class="tab-btn" id="tab-customers" onclick="switchTab('customers')">Khách hàng</div>
     <div class="tab-btn" id="tab-chat" onclick="switchTab('chat')">Trò chuyện</div>
     <div class="tab-btn" id="tab-drivers" onclick="switchTab('drivers')">Tài xế</div>
+    <div class="tab-btn" id="tab-settings" onclick="switchTab('settings')">Cài đặt</div>
   </div>
 
   <!-- BOOKINGS PANEL -->
@@ -171,8 +172,11 @@
       <button class="btn-tiny" onclick="findChatByPhone()">Tìm</button>
     </div>
     <div class="chat-header" id="chat-header">
-      <div class="name" id="chat-header-name"></div>
-      <div class="phone" id="chat-header-phone"></div>
+      <div>
+        <div class="name" id="chat-header-name"></div>
+        <div class="phone" id="chat-header-phone"></div>
+      </div>
+      <a href="#" id="chat-call-btn" style="text-decoration:none;"><button class="btn-tiny blue">📞 Gọi</button></a>
     </div>
     <div class="thread-scroll" id="admin-thread-scroll">
       <div class="empty-state" id="chat-empty">Tìm khách theo số điện thoại, hoặc bấm "💬 Nhắn tin" từ 1 đơn hàng để mở cuộc trò chuyện.</div>
@@ -190,12 +194,36 @@
       <div class="empty-state" id="drivers-empty" style="display:none;">Chưa có tài xế nào đăng ký. Gửi link trang đăng ký tài xế cho họ nhé.</div>
     </div>
   </div>
+
+  <!-- SETTINGS PANEL -->
+  <div class="panel" id="panel-settings">
+    <div class="scroll">
+      <div class="card">
+        <div class="card-name" style="margin-bottom:10px;">Số điện thoại admin (khách gọi trực tiếp)</div>
+        <div class="card-actions">
+          <input type="text" id="settings-phone-input" placeholder="090xxxxxxx">
+          <button class="btn-tiny" onclick="saveGeneralSettings()">Lưu</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-name" style="margin-bottom:10px;">Đơn giá mỗi km (để khách ước tính giá)</div>
+        <div class="card-actions">
+          <input type="text" id="settings-rate-input" placeholder="VD: 12000">
+          <button class="btn-tiny" onclick="saveGeneralSettings()">Lưu</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-name" style="margin-bottom:10px;">Giá cố định cho tuyến quen thuộc</div>
+        <div id="route-price-rows"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
-    getFirestore, collection, doc, updateDoc, serverTimestamp,
+    getFirestore, collection, doc, updateDoc, setDoc, serverTimestamp,
     query, where, orderBy, onSnapshot, limit, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -314,22 +342,46 @@
     let html = '';
     rows.forEach((b) => {
       const mapLine = b.pickupMapUrl ? '<a class="map-link" href="' + escapeHtml(b.pickupMapUrl) + '" target="_blank">📍 Xem điểm đón trên bản đồ</a><br>' : '';
+      let driverOptions = '<option value="">-- Gán tài xế --</option>';
+      driversCache.forEach((d) => {
+        driverOptions += '<option value="' + d.id + '"' + (b.driverId === d.id ? ' selected' : '') + '>' + escapeHtml(d.name || '') + '</option>';
+      });
+      const ratingLine = b.rating ? '<div style="font-size:12px;color:var(--accent-amber);margin-top:6px;">' +
+        '★'.repeat(b.rating) + '☆'.repeat(5 - b.rating) + (b.ratingComment ? (' — ' + escapeHtml(b.ratingComment)) : '') + '</div>' : '';
       html += '<div class="card">' +
         '<div class="card-top"><div><div class="card-name">' + escapeHtml(b.customerName || 'Khách') +
         '</div><div class="card-time">' + escapeHtml(b.date || '') + ' · ' + escapeHtml(b.time || '') + '</div></div>' +
         '<div class="status-badge ' + (b.status || 'requested') + '">' + statusLabel(b.status) + '</div></div>' +
         '<div class="card-route"><b>' + escapeHtml(b.pickup || '') + '</b> → <b>' + escapeHtml(b.dropoff || '') + '</b></div>' +
-        mapLine +
+        mapLine + ratingLine +
+        '<div class="card-actions">' +
+        '<select id="driver-select-' + b.id + '" onchange="assignDriver(\'' + b.id + '\', this.value)" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);font-size:12.5px;padding:8px;">' + driverOptions + '</select>' +
+        '</div>' +
         '<div class="card-actions">' +
         '<input type="text" placeholder="Giá (VD: 120k)" value="' + escapeHtml(b.price || '') + '" id="price-input-' + b.id + '">' +
         '<button class="btn-tiny" onclick="confirmBookingPrice(\'' + b.id + '\')">Chốt giá</button>' +
-        '<button class="btn-tiny blue" onclick="openChatFor(\'' + b.customerId + '\', \'' + escapeHtml(b.customerName || 'Khách').replace(/'/g,"") + '\')">💬 Nhắn tin</button>' +
+        '<button class="btn-tiny blue" onclick="openChatForCustomer(\'' + b.customerId + '\', \'' + escapeHtml(b.customerName || 'Khách').replace(/'/g,"") + '\')">💬 Nhắn tin</button>' +
         '<button class="btn-tiny ghost" onclick="setBookingStatus(\'' + b.id + '\', \'done\')">Hoàn thành</button>' +
         '<button class="btn-tiny red" onclick="setBookingStatus(\'' + b.id + '\', \'cancelled\')">Hủy</button>' +
         '</div></div>';
     });
     container.innerHTML = html;
   }
+
+  window.assignDriver = async function(bookingId, driverId){
+    if (!driverId) return;
+    const driver = driversCache.find((d) => d.id === driverId);
+    if (!driver) return;
+    try {
+      await updateDoc(doc(db, "bookings", bookingId), {
+        driverId: driverId,
+        driverName: driver.name || '',
+        driverCar: driver.car || '',
+        driverPhone: driver.phone || '',
+        updatedAt: serverTimestamp()
+      });
+    } catch (err) { console.error(err); alert('Có lỗi khi gán tài xế.'); }
+  };
 
   window.confirmBookingPrice = async function(bookingId){
     const input = document.getElementById('price-input-' + bookingId);
@@ -371,12 +423,18 @@
     } catch (err) { console.error(err); alert('Có lỗi khi tìm khách hàng.'); }
   };
 
+  window.openChatForCustomer = function(customerId, customerName){
+    const found = customersCache.find((c) => c.id === customerId);
+    openChatFor(customerId, customerName, found ? found.phone : '');
+  };
+
   window.openChatFor = function(customerId, customerName, customerPhone){
     switchTab('chat');
     currentChatCustomerId = customerId;
     document.getElementById('chat-header').classList.add('on');
     document.getElementById('chat-header-name').textContent = customerName || 'Khách';
     document.getElementById('chat-header-phone').textContent = customerPhone || '';
+    document.getElementById('chat-call-btn').href = customerPhone ? ('tel:' + customerPhone) : '#';
     document.getElementById('admin-composer').classList.add('on');
     document.getElementById('chat-empty').style.display = 'none';
 
@@ -418,14 +476,17 @@
   };
 
   /* ---------- DRIVERS ---------- */
+  let driversCache = [];
   function listenForDrivers(){
     const q = query(collection(db, "drivers"), orderBy("createdAt", "desc"));
     onSnapshot(q, (snapshot) => {
+      driversCache = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
       const container = document.getElementById('drivers-list');
       const emptyEl = document.getElementById('drivers-empty');
       if (snapshot.empty) {
         container.innerHTML = '';
         emptyEl.style.display = 'block';
+        renderBookings();
         return;
       }
       emptyEl.style.display = 'none';
@@ -440,12 +501,74 @@
           (isReady ? 'Sẵn sàng' : 'Đang chạy') + '</button></div>';
       });
       container.innerHTML = html;
+      renderBookings();
     });
   }
 
   window.toggleDriverStatus = async function(driverId, newStatus){
     try { await updateDoc(doc(db, "drivers", driverId), { status: newStatus }); }
     catch (err) { console.error(err); alert('Có lỗi khi cập nhật trạng thái tài xế.'); }
+  };
+
+  /* ---------- SETTINGS ---------- */
+  const ROUTE_DEFS = [
+    ['Ayun Pa', 'Sân bay Pleiku'],
+    ['Ayun Pa', 'Pleiku'],
+    ['Phú Thiện', 'Pleiku'],
+    ['Ayun Pa', 'Krông Pa']
+  ];
+  function routeKeyFor(a, b){ return (a + '_' + b).replace(/\s+/g, ''); }
+  let routePricesCache = {};
+
+  function renderRoutePriceRows(){
+    const container = document.getElementById('route-price-rows');
+    if (!container) return;
+    let html = '';
+    ROUTE_DEFS.forEach(([a, b]) => {
+      const key = routeKeyFor(a, b);
+      const current = (routePricesCache[key] && routePricesCache[key].price) || '';
+      html += '<div class="card-actions" style="margin-bottom:10px;">' +
+        '<span style="min-width:150px;font-size:12.5px;color:var(--text-muted);">' + a + ' ⇄ ' + b + '</span>' +
+        '<input type="text" id="rp-' + key + '" placeholder="VD: 120000" value="' + escapeHtml(current) + '">' +
+        '<button class="btn-tiny" onclick="saveRoutePrice(\'' + key + '\')">Lưu</button></div>';
+    });
+    container.innerHTML = html;
+  }
+
+  onSnapshot(collection(db, "routePrices"), (snap) => {
+    routePricesCache = {};
+    snap.forEach((d) => { routePricesCache[d.id] = d.data(); });
+    renderRoutePriceRows();
+  });
+
+  window.saveRoutePrice = async function(key){
+    const input = document.getElementById('rp-' + key);
+    const price = input.value.trim();
+    try {
+      await setDoc(doc(db, "routePrices", key), { price: price, updatedAt: serverTimestamp() }, { merge: true });
+      alert('Đã lưu giá tuyến!');
+    } catch (err) { console.error(err); alert('Có lỗi khi lưu giá tuyến.'); }
+  };
+
+  onSnapshot(doc(db, "settings", "general"), (snap) => {
+    const data = snap.data() || {};
+    const phoneInput = document.getElementById('settings-phone-input');
+    const rateInput = document.getElementById('settings-rate-input');
+    if (phoneInput && document.activeElement !== phoneInput) phoneInput.value = data.adminPhone || '';
+    if (rateInput && document.activeElement !== rateInput) rateInput.value = data.ratePerKm || '';
+  });
+
+  window.saveGeneralSettings = async function(){
+    const phone = document.getElementById('settings-phone-input').value.trim();
+    const rate = document.getElementById('settings-rate-input').value.trim();
+    try {
+      await setDoc(doc(db, "settings", "general"), {
+        adminPhone: phone,
+        ratePerKm: rate ? parseInt(rate) : 0,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      alert('Đã lưu cài đặt!');
+    } catch (err) { console.error(err); alert('Có lỗi khi lưu cài đặt.'); }
   };
 
   /* ---------- CUSTOMERS ---------- */
