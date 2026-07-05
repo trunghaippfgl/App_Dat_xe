@@ -1418,8 +1418,13 @@
     if (!customerId) { alert('Bạn cần hoàn tất đăng ký trước.'); return; }
     const ready = await waitForFirebaseReady();
     if (ready && window.savePaymentMethod) {
-      try { await window.savePaymentMethod(customerId, method); }
-      catch (err) { console.error('Không lưu được phương thức thanh toán:', err); }
+      try {
+        await window.savePaymentMethod(customerId, method);
+        updatePaymentMethodUI(method);
+        const labels = { cash: 'Tiền mặt', transfer: 'Chuyển khoản ngân hàng', ewallet: 'Ví điện tử' };
+        alert('✓ Đã lưu phương thức thanh toán: ' + (labels[method] || method));
+      }
+      catch (err) { console.error('Không lưu được phương thức thanh toán:', err); alert('Có lỗi khi lưu, thử lại nhé.'); }
     }
   }
 
@@ -2118,7 +2123,7 @@
     const menuBadge = document.getElementById('voucher-menu-badge');
     const bellDot = document.getElementById('home-bell-dot');
     if (!container) return;
-    const q = query(collection(db, "vouchers"), where("customerId", "==", customerId), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "vouchers"), where("customerId", "==", customerId));
     onSnapshot(q, (snapshot) => {
       if (snapshot.empty) {
         container.innerHTML = '';
@@ -2130,7 +2135,12 @@
       if (emptyEl) emptyEl.style.display = 'none';
       let html = '';
       let hasActive = false;
-      snapshot.forEach((docSnap) => {
+      const docs = snapshot.docs.slice().sort((a, b) => {
+        const at = (a.data().createdAt && a.data().createdAt.toMillis) ? a.data().createdAt.toMillis() : 0;
+        const bt = (b.data().createdAt && b.data().createdAt.toMillis) ? b.data().createdAt.toMillis() : 0;
+        return bt - at;
+      });
+      docs.forEach((docSnap) => {
         const v = docSnap.data();
         const isUsed = v.status === 'used';
         if (!isUsed) hasActive = true;
