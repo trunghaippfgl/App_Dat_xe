@@ -321,6 +321,9 @@
   .star-empty{ color: var(--border-steel); }
   .star-filled{ color: var(--accent-amber); }
 
+  .card{ background:var(--surface-800); border:1px solid var(--border-steel); border-radius:16px; padding:14px; }
+  #customer-notif-btn.on{ background:var(--route-green-dim); color:var(--route-green); border-color:transparent; }
+
   /* ---- saved route cards (home) ---- */
   .route-card{ background:var(--surface-800); border:1px solid var(--border-steel); border-radius:16px;
     padding:14px; margin-bottom:10px; cursor:pointer; }
@@ -798,6 +801,11 @@
               <div class="field-input"><input type="text" id="settings-phone-input" class="native-input"></div>
             </div>
             <button class="btn-full" id="settings-save-btn" onclick="saveAccountSettings()">Lưu thay đổi</button>
+          </div>
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-name" style="font-size:14px;font-weight:700;color:var(--text-fog);margin-bottom:8px;">Thông báo</div>
+            <div class="hint-line" style="text-align:left; margin-bottom:10px;">Bật để nhận thông báo ngay khi admin trả lời, chốt giá, hoặc gán tài xế cho chuyến của bạn.</div>
+            <button class="btn-tiny ghost" id="customer-notif-btn" onclick="enableCustomerNotifications()">🔔 Bật thông báo</button>
           </div>
           <div class="cancel-link" onclick="resetOnboarding()">Đăng xuất</div>
         </div>
@@ -1424,6 +1432,7 @@
     getFirestore, collection, doc, addDoc, setDoc, updateDoc, serverTimestamp,
     query, where, orderBy, onSnapshot, arrayUnion, arrayRemove, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBb8uSsLuChx4OYONl2ffFFwDSbSncZBpI",
@@ -1437,6 +1446,49 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const messaging = getMessaging(app);
+  const VAPID_KEY = "BHZahFM6YdPRj7uA1b6FgNh7UIegA_5nfu2sTIShQrWnRSY1UuRTDAsscUnmCR4vVNv6YAOnoVzNT5dcbhcTJzk";
+
+  window.enableCustomerNotifications = function(){
+    if (!('Notification' in window)) { alert('Trình duyệt này không hỗ trợ thông báo.'); return; }
+    const customerId = localStorage.getItem('xn_customer_id');
+    if (!customerId) { alert('Bạn cần hoàn tất đăng ký trước.'); return; }
+    const btn = document.getElementById('customer-notif-btn');
+    if (btn) btn.textContent = 'Đang bật...';
+
+    Notification.requestPermission().then((perm) => {
+      if (perm !== 'granted') {
+        alert('Bạn chưa cho phép thông báo. Có thể bật lại trong cài đặt trình duyệt.');
+        if (btn) btn.textContent = '🔔 Bật thông báo';
+        return;
+      }
+      navigator.serviceWorker.register('firebase-messaging-sw.js').then((registration) => {
+        getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration })
+          .then((token) => {
+            if (!token) {
+              alert('Không lấy được mã thông báo, thử lại nhé.');
+              if (btn) btn.textContent = '🔔 Bật thông báo';
+              return;
+            }
+            addDoc(collection(db, "customerTokens"), { token: token, customerId: customerId, createdAt: serverTimestamp() })
+              .then(() => {
+                if (btn) { btn.textContent = '✓ Đã bật thông báo'; btn.classList.add('on'); }
+              });
+          })
+          .catch((err) => {
+            console.error('FCM token error:', err);
+            alert('Có lỗi khi đăng ký thông báo: ' + err.message);
+            if (btn) btn.textContent = '🔔 Bật thông báo';
+          });
+      });
+    });
+  };
+
+  onMessage(messaging, (payload) => {
+    const title = (payload.notification && payload.notification.title) || 'Thông báo mới';
+    const body = (payload.notification && payload.notification.body) || '';
+    alert(title + '\n' + body);
+  });
 
   window.findCustomerByPhone = async function (phone) {
     const q = query(collection(db, "customers"), where("phone", "==", phone));
