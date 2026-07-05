@@ -682,10 +682,12 @@
           </div>
 
           <div class="driver-row" id="detail-driver-row" style="display:none; margin-top:14px;">
-            <div class="driver-avatar" id="detail-driver-avatar" style="width:44px;height:44px;"></div>
+            <div class="driver-avatar" id="detail-driver-avatar" style="width:44px;height:44px;background-size:cover;background-position:center;"></div>
             <div class="info">
               <div class="driver-name" id="detail-driver-name"></div>
               <div class="driver-rating" id="detail-driver-car"></div>
+              <div class="driver-rating" id="detail-driver-phone" style="margin-top:1px;"></div>
+              <div class="driver-rating" id="detail-driver-rating" style="margin-top:1px; color:var(--accent-amber);"></div>
             </div>
             <div class="actions">
               <a href="#" id="detail-driver-call" style="text-decoration:none;"><div class="round-btn call">📞</div></a>
@@ -1104,6 +1106,21 @@
       document.getElementById('detail-driver-name').textContent = el.dataset.drivername;
       document.getElementById('detail-driver-car').textContent = el.dataset.drivercar || '';
       document.getElementById('detail-driver-call').href = el.dataset.driverphone ? ('tel:' + el.dataset.driverphone) : '#';
+      document.getElementById('detail-driver-phone').textContent = el.dataset.driverphone ? ('📞 ' + el.dataset.driverphone) : '';
+      document.getElementById('detail-driver-rating').textContent = 'Đang tải đánh giá...';
+      document.getElementById('detail-driver-avatar').style.backgroundImage = '';
+      document.getElementById('detail-driver-avatar').textContent = el.dataset.drivername.charAt(0);
+      if (el.dataset.driverid && window.loadDriverExtras) {
+        window.loadDriverExtras(el.dataset.driverid).then((info) => {
+          if (info.photoBase64) {
+            document.getElementById('detail-driver-avatar').style.backgroundImage = 'url(' + info.photoBase64 + ')';
+            document.getElementById('detail-driver-avatar').textContent = '';
+          }
+          document.getElementById('detail-driver-rating').textContent = info.ratingCount > 0
+            ? ('⭐ ' + info.ratingAvg.toFixed(1) + ' (' + info.ratingCount + ' đánh giá)')
+            : 'Chưa có đánh giá';
+        });
+      }
 
       if (el.dataset.driverid && el.dataset.status !== 'done' && el.dataset.status !== 'cancelled') {
         trackRow.style.display = 'flex';
@@ -1725,6 +1742,25 @@
       const data = snap.data() || {};
       callback(data.liveLat || null, data.liveLng || null, data.liveUpdatedAt || null);
     });
+  };
+
+  window.loadDriverExtras = async function (driverId) {
+    const result = { photoBase64: '', ratingAvg: 0, ratingCount: 0 };
+    try {
+      const driverSnap = await getDoc(doc(db, "drivers", driverId));
+      if (driverSnap.exists()) result.photoBase64 = driverSnap.data().photoBase64 || '';
+    } catch (err) { console.error('Lỗi tải ảnh tài xế:', err); }
+    try {
+      const q = query(collection(db, "bookings"), where("driverId", "==", driverId));
+      const snap = await getDocs(q);
+      const ratings = [];
+      snap.forEach((d) => { const r = d.data().rating; if (r) ratings.push(r); });
+      if (ratings.length > 0) {
+        result.ratingCount = ratings.length;
+        result.ratingAvg = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+      }
+    } catch (err) { console.error('Lỗi tính đánh giá tài xế:', err); }
+    return result;
   };
 
   window.saveCustomerToFirestore = async function (existingId, name, phone) {

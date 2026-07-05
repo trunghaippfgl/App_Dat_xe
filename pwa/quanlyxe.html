@@ -407,6 +407,7 @@
     onSnapshot(q, (snapshot) => {
       allBookings = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       renderBookings();
+      renderDriversList();
     });
   }
 
@@ -481,35 +482,50 @@
 
   /* ---------- DRIVERS ---------- */
   let driversCache = [];
+  function driverRatingText(driverId){
+    const rated = allBookings.filter((b) => b.driverId === driverId && b.rating);
+    if (rated.length === 0) return 'Chưa có đánh giá';
+    const avg = rated.reduce((sum, b) => sum + b.rating, 0) / rated.length;
+    return '⭐ ' + avg.toFixed(1) + ' (' + rated.length + ' đánh giá)';
+  }
+  function renderDriversList(){
+    const container = document.getElementById('drivers-list');
+    const emptyEl = document.getElementById('drivers-empty');
+    if (driversCache.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      renderBookings();
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    driversCache.forEach((d) => {
+      const isReady = d.status !== 'busy';
+      const avatarStyle = d.photoBase64 ? ' style="background-image:url(' + d.photoBase64 + ');background-size:cover;background-position:center;"' : '';
+      html += '<div class="driver-card" style="flex-direction:column; align-items:stretch;">' +
+        '<div style="display:flex; align-items:center; gap:12px;">' +
+        '<div class="driver-avatar"' + avatarStyle + '>' + (d.photoBase64 ? '' : escapeHtml((d.name||'?').charAt(0))) + '</div>' +
+        '<div class="driver-info"><div class="driver-name">' + escapeHtml(d.name||'') + '</div>' +
+        '<div class="driver-detail">' + escapeHtml(d.car||'') + (d.phone ? ' · ' + escapeHtml(d.phone) : '') + '</div>' +
+        '<div class="driver-detail" style="color:var(--accent-amber);">' + driverRatingText(d.id) + '</div></div>' +
+        '<button class="btn-tiny ' + (isReady ? 'ghost' : '') + '" onclick="toggleDriverStatus(\'' + d.id + '\', ' + (isReady ? "'busy'" : "'ready'") + ')">' +
+        (isReady ? 'Sẵn sàng' : 'Đang chạy') + '</button></div>' +
+        '<div class="card-actions" style="margin-top:10px;">' +
+        '<button class="btn-tiny ghost" onclick="editDriverFromAdmin(\'' + d.id + '\', \'' + escapeHtml(d.name||'').replace(/'/g,"") + '\', \'' + escapeHtml(d.car||'').replace(/'/g,"") + '\', \'' + escapeHtml(d.phone||'').replace(/'/g,"") + '\')">✎ Sửa</button>' +
+        '<button class="btn-tiny red" onclick="deleteDriverFromAdmin(\'' + d.id + '\', \'' + escapeHtml(d.name||'').replace(/'/g,"") + '\')">🗑 Xóa</button>' +
+        '</div></div>';
+    });
+    container.innerHTML = html;
+    renderBookings();
+  }
+
   function listenForDrivers(){
     const q = query(collection(db, "drivers"), orderBy("createdAt", "desc"));
     onSnapshot(q, (snapshot) => {
       driversCache = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const container = document.getElementById('drivers-list');
-      const emptyEl = document.getElementById('drivers-empty');
-      if (snapshot.empty) {
-        container.innerHTML = '';
-        emptyEl.style.display = 'block';
-        renderBookings();
-        return;
-      }
-      emptyEl.style.display = 'none';
-      let html = '';
-      snapshot.forEach((docSnap) => {
-        const d = docSnap.data();
-        const isReady = d.status !== 'busy';
-        html += '<div class="driver-card" style="flex-direction:column; align-items:stretch;">' +
-          '<div style="display:flex; align-items:center; gap:12px;">' +
-          '<div class="driver-avatar">' + escapeHtml((d.name||'?').charAt(0)) + '</div>' +
-          '<div class="driver-info"><div class="driver-name">' + escapeHtml(d.name||'') + '</div>' +
-          '<div class="driver-detail">' + escapeHtml(d.car||'') + (d.phone ? ' · ' + escapeHtml(d.phone) : '') + '</div></div>' +
-          '<button class="btn-tiny ' + (isReady ? 'ghost' : '') + '" onclick="toggleDriverStatus(\'' + docSnap.id + '\', ' + (isReady ? "'busy'" : "'ready'") + ')">' +
-          (isReady ? 'Sẵn sàng' : 'Đang chạy') + '</button></div>' +
-          '<div class="card-actions" style="margin-top:10px;">' +
-          '<button class="btn-tiny ghost" onclick="editDriverFromAdmin(\'' + docSnap.id + '\', \'' + escapeHtml(d.name||'').replace(/'/g,"") + '\', \'' + escapeHtml(d.car||'').replace(/'/g,"") + '\', \'' + escapeHtml(d.phone||'').replace(/'/g,"") + '\')">✎ Sửa</button>' +
-          '<button class="btn-tiny red" onclick="deleteDriverFromAdmin(\'' + docSnap.id + '\', \'' + escapeHtml(d.name||'').replace(/'/g,"") + '\')">🗑 Xóa</button>' +
-          '</div></div>';
-      });
+      renderDriversList();
+    });
+  }
       container.innerHTML = html;
       renderBookings();
     });
