@@ -526,10 +526,6 @@
       renderDriversList();
     });
   }
-      container.innerHTML = html;
-      renderBookings();
-    });
-  }
 
   window.toggleDriverStatus = async function(driverId, newStatus){
     try { await updateDoc(doc(db, "drivers", driverId), { status: newStatus }); }
