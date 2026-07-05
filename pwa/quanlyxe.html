@@ -190,6 +190,7 @@
   <!-- DRIVERS PANEL -->
   <div class="panel" id="panel-drivers">
     <div class="scroll">
+      <button class="btn-tiny" style="margin-bottom:12px;" onclick="addDriverFromAdmin()">+ Thêm tài xế mới</button>
       <div id="drivers-list"></div>
       <div class="empty-state" id="drivers-empty" style="display:none;">Chưa có tài xế nào đăng ký. Gửi link trang đăng ký tài xế cho họ nhé.</div>
     </div>
@@ -223,7 +224,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
-    getFirestore, collection, doc, updateDoc, setDoc, serverTimestamp,
+    getFirestore, collection, doc, updateDoc, setDoc, deleteDoc, serverTimestamp,
     query, where, orderBy, onSnapshot, limit, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -497,11 +498,17 @@
       snapshot.forEach((docSnap) => {
         const d = docSnap.data();
         const isReady = d.status !== 'busy';
-        html += '<div class="driver-card"><div class="driver-avatar">' + escapeHtml((d.name||'?').charAt(0)) + '</div>' +
+        html += '<div class="driver-card" style="flex-direction:column; align-items:stretch;">' +
+          '<div style="display:flex; align-items:center; gap:12px;">' +
+          '<div class="driver-avatar">' + escapeHtml((d.name||'?').charAt(0)) + '</div>' +
           '<div class="driver-info"><div class="driver-name">' + escapeHtml(d.name||'') + '</div>' +
           '<div class="driver-detail">' + escapeHtml(d.car||'') + (d.phone ? ' · ' + escapeHtml(d.phone) : '') + '</div></div>' +
           '<button class="btn-tiny ' + (isReady ? 'ghost' : '') + '" onclick="toggleDriverStatus(\'' + docSnap.id + '\', ' + (isReady ? "'busy'" : "'ready'") + ')">' +
-          (isReady ? 'Sẵn sàng' : 'Đang chạy') + '</button></div>';
+          (isReady ? 'Sẵn sàng' : 'Đang chạy') + '</button></div>' +
+          '<div class="card-actions" style="margin-top:10px;">' +
+          '<button class="btn-tiny ghost" onclick="editDriverFromAdmin(\'' + docSnap.id + '\', \'' + escapeHtml(d.name||'').replace(/'/g,"") + '\', \'' + escapeHtml(d.car||'').replace(/'/g,"") + '\', \'' + escapeHtml(d.phone||'').replace(/'/g,"") + '\')">✎ Sửa</button>' +
+          '<button class="btn-tiny red" onclick="deleteDriverFromAdmin(\'' + docSnap.id + '\', \'' + escapeHtml(d.name||'').replace(/'/g,"") + '\')">🗑 Xóa</button>' +
+          '</div></div>';
       });
       container.innerHTML = html;
       renderBookings();
@@ -511,6 +518,39 @@
   window.toggleDriverStatus = async function(driverId, newStatus){
     try { await updateDoc(doc(db, "drivers", driverId), { status: newStatus }); }
     catch (err) { console.error(err); alert('Có lỗi khi cập nhật trạng thái tài xế.'); }
+  };
+
+  window.addDriverFromAdmin = async function(){
+    const name = prompt('Tên tài xế:');
+    if (!name) return;
+    const car = prompt('Loại xe + biển số (VD: Innova · 51H-889.12):');
+    if (!car) return;
+    const phone = prompt('Số điện thoại liên hệ:') || '';
+    try {
+      await addDoc(collection(db, "drivers"), {
+        name: name, car: car, phone: phone, status: 'ready', createdAt: serverTimestamp()
+      });
+      alert('Đã thêm tài xế!');
+    } catch (err) { console.error(err); alert('Có lỗi khi thêm tài xế.'); }
+  };
+
+  window.editDriverFromAdmin = async function(driverId, currentName, currentCar, currentPhone){
+    const name = prompt('Tên tài xế:', currentName);
+    if (!name) return;
+    const car = prompt('Loại xe + biển số:', currentCar);
+    if (!car) return;
+    const phone = prompt('Số điện thoại:', currentPhone) || '';
+    try {
+      await updateDoc(doc(db, "drivers", driverId), { name: name, car: car, phone: phone });
+      alert('Đã cập nhật thông tin tài xế!');
+    } catch (err) { console.error(err); alert('Có lỗi khi sửa thông tin tài xế.'); }
+  };
+
+  window.deleteDriverFromAdmin = async function(driverId, name){
+    if (!confirm('Xóa tài xế "' + name + '" khỏi hệ thống? Không thể hoàn tác.')) return;
+    try {
+      await deleteDoc(doc(db, "drivers", driverId));
+    } catch (err) { console.error(err); alert('Có lỗi khi xóa tài xế.'); }
   };
 
   /* ---------- SETTINGS ---------- */
