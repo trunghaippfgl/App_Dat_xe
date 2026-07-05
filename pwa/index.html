@@ -822,6 +822,16 @@
             <div class="avatar" style="width:42px;height:42px;font-size:18px;">📱</div>
             <div class="driver-list-info"><div class="driver-list-name">Ví điện tử</div><div class="driver-list-car">Momo, ZaloPay, ...</div></div>
           </div>
+
+          <div class="section-label">Mã giảm giá</div>
+          <div class="book-form">
+            <div class="field">
+              <span class="field-label">Nhập mã voucher của bạn</span>
+              <div class="field-input"><input type="text" id="voucher-code-input" class="native-input" placeholder="VD: CHAOMUNG" style="text-transform:uppercase;"></div>
+            </div>
+            <button class="btn-full" onclick="applyVoucherCode()">Áp dụng mã</button>
+            <div class="hint-line" id="applied-voucher-text" style="color:var(--route-green); font-weight:700;"></div>
+          </div>
         </div>
       </div>
 
@@ -1334,6 +1344,10 @@
         });
       }
     }
+    if (id === 'screen-payment-method') {
+      const applied = localStorage.getItem('xn_applied_voucher');
+      document.getElementById('applied-voucher-text').textContent = applied ? ('✓ Đang áp dụng mã "' + applied + '" cho chuyến tiếp theo') : '';
+    }
   }
   function copyReferralCode(){
     const input = document.getElementById('my-referral-code');
@@ -1520,12 +1534,21 @@
           pickupMapUrl: mapUrl,
           packageDesc: packageDesc,
           receiverName: receiverName,
-          receiverPhone: receiverPhone
+          receiverPhone: receiverPhone,
+          appliedVoucherCode: localStorage.getItem('xn_applied_voucher') || ''
         });
         localStorage.setItem('xn_last_booking_id', newId);
         if (mapUrl && window.sendMessageToFirestore) {
           await window.sendMessageToFirestore(customerId, 'me',
             '📍 Vị trí đón (định vị GPS): ' + mapUrl, customerName);
+        }
+        const appliedCode = localStorage.getItem('xn_applied_voucher');
+        if (appliedCode && window.markVoucherUsedByCode) {
+          await window.markVoucherUsedByCode(customerId, appliedCode);
+          await window.sendMessageToFirestore(customerId, 'me',
+            '🎁 Đã áp dụng mã giảm giá "' + appliedCode + '" cho chuyến này.', customerName);
+          localStorage.removeItem('xn_applied_voucher');
+          document.getElementById('applied-voucher-text').textContent = '';
         }
       } catch (err) {
         console.error('Không tạo được yêu cầu đặt xe:', err);
@@ -1585,6 +1608,29 @@
     document.getElementById('pickup-label').textContent = type === 'package' ? 'Nơi gửi hàng' : 'Điểm đón';
     document.getElementById('dropoff-label').textContent = type === 'package' ? 'Nơi nhận hàng' : 'Điểm đến';
     document.getElementById('submit-request-btn').textContent = type === 'package' ? 'Gửi yêu cầu chuyển hàng' : 'Gửi yêu cầu thỏa thuận giá';
+  }
+  async function applyVoucherCode(){
+    const code = document.getElementById('voucher-code-input').value.trim().toUpperCase();
+    if (!code) { alert('Bạn nhập mã voucher trước nhé.'); return; }
+    const customerId = localStorage.getItem('xn_customer_id');
+    if (!customerId) { alert('Bạn cần hoàn tất đăng ký trước.'); return; }
+
+    const ready = await waitForFirebaseReady();
+    if (ready && window.checkAndApplyVoucher) {
+      try {
+        const result = await window.checkAndApplyVoucher(customerId, code);
+        if (result.valid) {
+          localStorage.setItem('xn_applied_voucher', code);
+          document.getElementById('applied-voucher-text').textContent = '✓ Đã áp dụng mã "' + code + '": ' + result.description;
+        } else {
+          document.getElementById('applied-voucher-text').textContent = '';
+          alert('Mã không hợp lệ hoặc đã được sử dụng.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Có lỗi khi kiểm tra mã voucher.');
+      }
+    }
   }
   function useCustomRoute(){
     document.getElementById('dropoff-text').value = '';
@@ -1797,9 +1843,17 @@
       packageDesc: data.packageDesc || '',
       receiverName: data.receiverName || '',
       receiverPhone: data.receiverPhone || '',
+      appliedVoucherCode: data.appliedVoucherCode || '',
       createdAt: serverTimestamp()
     });
     return docRef.id;
+  };
+
+  window.markVoucherUsedByCode = async function (customerId, code) {
+    const q = query(collection(db, "vouchers"), where("customerId", "==", customerId), where("code", "==", code), where("status", "==", "active"));
+    const snap = await getDocs(q);
+    if (snap.empty) return;
+    await updateDoc(doc(db, "vouchers", snap.docs[0].id), { status: "used" });
   };
 
   window.sendMessageToFirestore = async function (threadId, sender, text, senderName) {
@@ -1826,6 +1880,14 @@
       rating: stars,
       ratingComment: comment || ''
     });
+  };
+
+  window.checkAndApplyVoucher = async function (customerId, code) {
+    const q = query(collection(db, "vouchers"), where("customerId", "==", customerId), where("code", "==", code), where("status", "==", "active"));
+    const snap = await getDocs(q);
+    if (snap.empty) return { valid: false };
+    const doc0 = snap.docs[0];
+    return { valid: true, description: doc0.data().description || '', voucherId: doc0.id };
   };
 
   let appSettings = { adminPhone: '', ratePerKm: 0 };

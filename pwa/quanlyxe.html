@@ -114,6 +114,11 @@
   .unread-dot{ display:inline-block; width:8px; height:8px; border-radius:100px; background:var(--alert-red); margin-left:5px; vertical-align:middle; }
 
   /* driver tab */
+  .avatar-picker{ width:76px; height:76px; border-radius:22px; background:var(--surface-700);
+    border:1.5px dashed var(--border-steel); display:flex; align-items:center; justify-content:center;
+    font-size:24px; color:var(--text-dim); margin:0 auto 16px; cursor:pointer;
+    background-size:cover; background-position:center; }
+
   .driver-card{ display:flex; align-items:center; gap:12px; background:var(--surface-800); border:1px solid var(--border-steel);
     border-radius:16px; padding:12px 14px; margin-bottom:10px; }
   .driver-avatar{ width:44px; height:44px; border-radius:13px; background:linear-gradient(155deg,#F2A93B,#E0872A);
@@ -218,6 +223,47 @@
         <div id="route-price-rows"></div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- EDIT DRIVER MODAL -->
+<div id="edit-driver-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center;">
+  <div style="background:var(--surface-800); border:1px solid var(--border-steel); border-radius:16px; padding:20px; width:90%; max-width:380px;">
+    <div style="font-size:15px; font-weight:700; margin-bottom:14px;">Sửa thông tin tài xế</div>
+    <div class="avatar-picker" id="edit-driver-avatar" onclick="document.getElementById('edit-driver-photo-input').click()">📷</div>
+    <input type="file" id="edit-driver-photo-input" accept="image/*" style="display:none;" onchange="handleEditDriverPhoto(this)">
+    <div class="card-actions" style="flex-direction:column; align-items:stretch; gap:8px;">
+      <input type="text" id="edit-driver-name" placeholder="Tên tài xế" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;">
+      <input type="text" id="edit-driver-car" placeholder="Loại xe + biển số" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;">
+      <input type="text" id="edit-driver-phone" placeholder="Số điện thoại" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;">
+    </div>
+    <div class="card-actions" style="margin-top:14px;">
+      <button class="btn-tiny ghost" onclick="closeEditDriverModal()">Hủy</button>
+      <button class="btn-tiny" onclick="saveEditDriverModal()">Lưu thay đổi</button>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOMER DETAIL MODAL -->
+<div id="customer-detail-overlay" style="display:none; position:fixed; inset:0; background:var(--bg-asphalt-900); z-index:100; flex-direction:column;">
+  <div class="thread-header">
+    <div class="name" style="display:flex;align-items:center;gap:10px;">
+      <button class="btn-tiny ghost" onclick="closeCustomerDetail()">← Đóng</button>
+    </div>
+  </div>
+  <div class="scroll" style="flex:1; overflow-y:auto; padding:16px;">
+    <div class="card" style="margin-bottom:14px; text-align:center;">
+      <div class="driver-avatar" id="cd-avatar" style="width:64px;height:64px;font-size:22px;margin:0 auto 10px;background-size:cover;background-position:center;"></div>
+      <div style="font-size:16px;font-weight:800;" id="cd-name"></div>
+      <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;" id="cd-phone"></div>
+      <div class="card-actions" style="justify-content:center; margin-top:14px;">
+        <button class="btn-tiny blue" id="cd-chat-btn">💬 Nhắn tin</button>
+        <button class="btn-tiny" onclick="giveVoucherFromDetail()">🎁 Tặng voucher</button>
+      </div>
+    </div>
+    <div class="card-name" style="margin-bottom:8px;">Lịch sử chuyến đi</div>
+    <div id="cd-trips-list"></div>
+    <div class="empty-state" id="cd-trips-empty" style="display:none;">Khách này chưa có chuyến đi nào.</div>
   </div>
 </div>
 
@@ -349,6 +395,7 @@
       });
       const ratingLine = b.rating ? '<div style="font-size:12px;color:var(--accent-amber);margin-top:6px;">' +
         '★'.repeat(b.rating) + '☆'.repeat(5 - b.rating) + (b.ratingComment ? (' — ' + escapeHtml(b.ratingComment)) : '') + '</div>' : '';
+      const voucherAppliedLine = b.appliedVoucherCode ? '<div style="font-size:12px;color:var(--route-green);margin-top:6px;font-weight:700;">🎁 Khách đã áp mã: ' + escapeHtml(b.appliedVoucherCode) + ' — nhớ trừ giảm giá khi chốt giá</div>' : '';
       const packageLine = b.type === 'gui_hang' ? '<div style="font-size:12px;color:var(--blue);margin-bottom:6px;">📦 Gửi hàng: ' +
         escapeHtml(b.packageDesc || '') + ' — Người nhận: ' + escapeHtml(b.receiverName || '') +
         (b.receiverPhone ? ' (' + escapeHtml(b.receiverPhone) + ')' : '') + '</div>' : '';
@@ -357,7 +404,7 @@
         '</div><div class="card-time">' + escapeHtml(b.date || '') + ' · ' + escapeHtml(b.time || '') + '</div></div>' +
         '<div class="status-badge ' + (b.status || 'requested') + '">' + statusLabel(b.status) + '</div></div>' +
         '<div class="card-route"><b>' + escapeHtml(b.pickup || '') + '</b> → <b>' + escapeHtml(b.dropoff || '') + '</b></div>' +
-        packageLine + mapLine + ratingLine +
+        packageLine + mapLine + ratingLine + voucherAppliedLine +
         '<div class="card-actions">' +
         '<select id="driver-select-' + b.id + '" onchange="assignDriver(\'' + b.id + '\', this.value)" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);font-size:12.5px;padding:8px;">' + driverOptions + '</select>' +
         '</div>' +
@@ -546,15 +593,78 @@
     } catch (err) { console.error(err); alert('Có lỗi khi thêm tài xế.'); }
   };
 
-  window.editDriverFromAdmin = async function(driverId, currentName, currentCar, currentPhone){
-    const name = prompt('Tên tài xế:', currentName);
-    if (!name) return;
-    const car = prompt('Loại xe + biển số:', currentCar);
-    if (!car) return;
-    const phone = prompt('Số điện thoại:', currentPhone) || '';
+  let editingDriverId = null;
+  let pendingEditDriverPhoto = null;
+  window.editDriverFromAdmin = function(driverId, currentName, currentCar, currentPhone){
+    editingDriverId = driverId;
+    pendingEditDriverPhoto = null;
+    document.getElementById('edit-driver-name').value = currentName || '';
+    document.getElementById('edit-driver-car').value = currentCar || '';
+    document.getElementById('edit-driver-phone').value = currentPhone || '';
+    const driver = driversCache.find((d) => d.id === driverId);
+    const avatarEl = document.getElementById('edit-driver-avatar');
+    if (driver && driver.photoBase64) {
+      avatarEl.style.backgroundImage = 'url(' + driver.photoBase64 + ')';
+      avatarEl.textContent = '';
+    } else {
+      avatarEl.style.backgroundImage = '';
+      avatarEl.textContent = '📷';
+    }
+    document.getElementById('edit-driver-overlay').style.display = 'flex';
+  };
+
+  function closeEditDriverModal(){
+    document.getElementById('edit-driver-overlay').style.display = 'none';
+    editingDriverId = null;
+  }
+  window.closeEditDriverModal = closeEditDriverModal;
+
+  function resizeImageFile(file, maxSize, quality){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width, h = img.height;
+          if (w > h) { if (w > maxSize) { h = Math.round(h * maxSize / w); w = maxSize; } }
+          else { if (h > maxSize) { w = Math.round(w * maxSize / h); h = maxSize; } }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  window.handleEditDriverPhoto = async function(inputEl){
+    const file = inputEl.files && inputEl.files[0];
+    if (!file) return;
     try {
-      await updateDoc(doc(db, "drivers", driverId), { name: name, car: car, phone: phone });
+      const dataUrl = await resizeImageFile(file, 200, 0.7);
+      pendingEditDriverPhoto = dataUrl;
+      const avatarEl = document.getElementById('edit-driver-avatar');
+      avatarEl.style.backgroundImage = 'url(' + dataUrl + ')';
+      avatarEl.textContent = '';
+    } catch (err) { console.error(err); alert('Có lỗi khi chọn ảnh.'); }
+  };
+
+  window.saveEditDriverModal = async function(){
+    if (!editingDriverId) return;
+    const name = document.getElementById('edit-driver-name').value.trim();
+    const car = document.getElementById('edit-driver-car').value.trim();
+    const phone = document.getElementById('edit-driver-phone').value.trim();
+    if (!name || !car) { alert('Bạn nhập đủ tên và loại xe nhé.'); return; }
+    const updateData = { name: name, car: car, phone: phone };
+    if (pendingEditDriverPhoto) updateData.photoBase64 = pendingEditDriverPhoto;
+    try {
+      await updateDoc(doc(db, "drivers", editingDriverId), updateData);
       alert('Đã cập nhật thông tin tài xế!');
+      closeEditDriverModal();
     } catch (err) { console.error(err); alert('Có lỗi khi sửa thông tin tài xế.'); }
   };
 
@@ -652,7 +762,7 @@
       const unread = lm && lm.sender === 'me';
       const safeName = escapeHtml(c.name || 'Khách').replace(/'/g, "");
       const safePhone = escapeHtml(c.phone || '');
-      html += '<div class="card" style="cursor:pointer;" onclick="openChatFor(\'' + c.id + '\', \'' + safeName + '\', \'' + safePhone + '\')">' +
+      html += '<div class="card" style="cursor:pointer;" onclick="openCustomerDetail(\'' + c.id + '\', \'' + safeName + '\', \'' + safePhone + '\')">' +
         '<div class="card-top"><div><div class="card-name">' + escapeHtml(c.name || 'Khách') +
         (unread ? '<span class="unread-dot"></span>' : '') + '</div>' +
         '<div class="card-time">' + escapeHtml(c.phone || '') + '</div></div></div>' +
@@ -660,6 +770,79 @@
     });
     container.innerHTML = html;
   }
+
+  let currentDetailCustomerId = null;
+  window.openCustomerDetail = function(customerId, name, phone){
+    currentDetailCustomerId = customerId;
+    const customer = customersCache.find((c) => c.id === customerId) || {};
+    const avatarEl = document.getElementById('cd-avatar');
+    if (customer.photoBase64) {
+      avatarEl.style.backgroundImage = 'url(' + customer.photoBase64 + ')';
+      avatarEl.textContent = '';
+    } else {
+      avatarEl.style.backgroundImage = '';
+      avatarEl.textContent = (name || '?').charAt(0);
+    }
+    document.getElementById('cd-name').textContent = name || 'Khách';
+    document.getElementById('cd-phone').textContent = phone || '';
+    document.getElementById('cd-chat-btn').onclick = () => {
+      closeCustomerDetail();
+      openChatFor(customerId, name, phone);
+    };
+
+    const trips = allBookings.filter((b) => b.customerId === customerId);
+    const listEl = document.getElementById('cd-trips-list');
+    const emptyEl = document.getElementById('cd-trips-empty');
+    if (trips.length === 0) {
+      listEl.innerHTML = '';
+      emptyEl.style.display = 'block';
+    } else {
+      emptyEl.style.display = 'none';
+      let html = '';
+      trips.forEach((b) => {
+        const badge = statusLabel(b.status);
+        const voucherLine = b.appliedVoucherCode ? '<div style="font-size:11px;color:var(--accent-amber);margin-top:4px;">🎁 Mã đã áp: ' + escapeHtml(b.appliedVoucherCode) + '</div>' : '';
+        html += '<div class="card" style="margin-bottom:10px;">' +
+          '<div class="card-top"><div><div class="card-time">' + escapeHtml(b.date || '') + ' · ' + escapeHtml(b.time || '') + '</div></div>' +
+          '<div class="status-badge ' + (b.status || 'requested') + '">' + badge + '</div></div>' +
+          '<div class="card-route" style="margin-bottom:0;"><b>' + escapeHtml(b.pickup || '') + '</b> → <b>' + escapeHtml(b.dropoff || '') + '</b>' +
+          (b.price ? ' · ' + escapeHtml(b.price) : '') + '</div>' + voucherLine + '</div>';
+      });
+      listEl.innerHTML = html;
+    }
+
+    document.getElementById('customer-detail-overlay').style.display = 'flex';
+  };
+
+  window.closeCustomerDetail = function(){
+    document.getElementById('customer-detail-overlay').style.display = 'none';
+    currentDetailCustomerId = null;
+  };
+
+  window.giveVoucherFromDetail = async function(){
+    if (!currentDetailCustomerId) return;
+    const code = prompt('Mã voucher (VD: KHACHQUEN20):');
+    if (!code) return;
+    const desc = prompt('Nội dung ưu đãi (VD: Giảm 20.000đ cho chuyến tiếp theo):');
+    if (!desc) return;
+    try {
+      await addDoc(collection(db, "vouchers"), {
+        customerId: currentDetailCustomerId,
+        code: code.toUpperCase(),
+        description: desc,
+        status: 'active',
+        createdAt: serverTimestamp()
+      });
+      await addDoc(collection(db, "messages"), {
+        threadId: currentDetailCustomerId,
+        sender: 'them',
+        senderName: 'Quản lý',
+        text: '🎁 Bạn vừa nhận được ưu đãi mới: ' + desc + ' (mã: ' + code.toUpperCase() + '). Xem trong mục Cá nhân > Voucher khuyến mãi nhé!',
+        createdAt: serverTimestamp()
+      });
+      alert('Đã tặng voucher cho khách!');
+    } catch (err) { console.error(err); alert('Có lỗi khi tặng voucher.'); }
+  };
 
   function listenForCustomers(){
     const q = query(collection(db, "customers"), orderBy("createdAt", "desc"));
