@@ -348,12 +348,15 @@
       });
       const ratingLine = b.rating ? '<div style="font-size:12px;color:var(--accent-amber);margin-top:6px;">' +
         '★'.repeat(b.rating) + '☆'.repeat(5 - b.rating) + (b.ratingComment ? (' — ' + escapeHtml(b.ratingComment)) : '') + '</div>' : '';
+      const packageLine = b.type === 'gui_hang' ? '<div style="font-size:12px;color:var(--blue);margin-bottom:6px;">📦 Gửi hàng: ' +
+        escapeHtml(b.packageDesc || '') + ' — Người nhận: ' + escapeHtml(b.receiverName || '') +
+        (b.receiverPhone ? ' (' + escapeHtml(b.receiverPhone) + ')' : '') + '</div>' : '';
       html += '<div class="card">' +
         '<div class="card-top"><div><div class="card-name">' + escapeHtml(b.customerName || 'Khách') +
         '</div><div class="card-time">' + escapeHtml(b.date || '') + ' · ' + escapeHtml(b.time || '') + '</div></div>' +
         '<div class="status-badge ' + (b.status || 'requested') + '">' + statusLabel(b.status) + '</div></div>' +
         '<div class="card-route"><b>' + escapeHtml(b.pickup || '') + '</b> → <b>' + escapeHtml(b.dropoff || '') + '</b></div>' +
-        mapLine + ratingLine +
+        packageLine + mapLine + ratingLine +
         '<div class="card-actions">' +
         '<select id="driver-select-' + b.id + '" onchange="assignDriver(\'' + b.id + '\', this.value)" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);font-size:12.5px;padding:8px;">' + driverOptions + '</select>' +
         '</div>' +

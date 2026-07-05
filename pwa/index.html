@@ -380,6 +380,7 @@
   .quick-chip-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
   .quick-chip{ font-size:11.5px; font-weight:600; color:var(--text-fog); background:var(--surface-700);
     border:1px solid var(--border-steel); padding:7px 11px; border-radius:100px; cursor:pointer; white-space:nowrap; }
+  .quick-chip.on{ background:var(--accent-amber-dim); color:var(--accent-amber); border-color:rgba(242,169,59,0.4); }
   .cancel-link{ display:block; text-align:center; color:var(--alert-red); font-size:12.5px; font-weight:600;
     margin-top:18px; cursor:pointer; }
 
@@ -403,6 +404,8 @@
   .notch, .statusbar{ display:none; }
   .hint{ display:none; }
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
@@ -532,6 +535,11 @@
             <input type="text" placeholder="Ví dụ: Vincom Q7, TP.HCM">
           </div>
 
+          <span class="onboard-field-label">Mã giới thiệu từ bạn bè (nếu có)</span>
+          <div class="onboard-input-row">
+            <input type="text" id="referral-code-input" placeholder="Dán mã bạn bè gửi cho bạn">
+          </div>
+
           <button class="btn-full" id="finish-btn" onclick="enterApp()">Bắt đầu đặt xe</button>
         </div>
       </div>
@@ -558,14 +566,33 @@
             <div class="quick-chip" onclick="useCustomRoute()">✏️ Tuyến khác (tự nhập)</div>
           </div>
 
+          <div class="quick-chip-row" style="margin-top:0; margin-bottom:14px;">
+            <div class="quick-chip on" id="service-type-passenger" onclick="setServiceType('passenger')">🧍 Chở khách</div>
+            <div class="quick-chip" id="service-type-package" onclick="setServiceType('package')">📦 Gửi hàng</div>
+          </div>
+
           <div class="book-form">
+            <div id="package-fields" style="display:none;">
+              <div class="field">
+                <span class="field-label">Mô tả hàng hóa</span>
+                <div class="field-input"><input type="text" id="package-desc-input" class="native-input" placeholder="VD: 1 thùng trái cây, 5kg"></div>
+              </div>
+              <div class="field">
+                <span class="field-label">Tên người nhận</span>
+                <div class="field-input"><input type="text" id="package-receiver-name" class="native-input" placeholder="Tên người nhận hàng"></div>
+              </div>
+              <div class="field">
+                <span class="field-label">SĐT người nhận</span>
+                <div class="field-input"><input type="text" id="package-receiver-phone" class="native-input" placeholder="090xxxxxxx"></div>
+              </div>
+            </div>
             <div class="route-fields-wrap">
               <div class="field">
-                <span class="field-label">Điểm đón</span>
+                <span class="field-label" id="pickup-label">Điểm đón</span>
                 <div class="field-input" id="pickup-input"><div class="dot" style="background:var(--route-green)"></div><input type="text" id="pickup-text" class="native-input" placeholder="Vị trí hiện tại"><button type="button" class="locate-btn" onclick="useCurrentLocation()" title="Lấy vị trí hiện tại">📍</button></div>
               </div>
               <div class="field">
-                <span class="field-label">Điểm đến</span>
+                <span class="field-label" id="dropoff-label">Điểm đến</span>
                 <div class="field-input" id="dropoff-input"><div class="dot" style="background:var(--alert-red)"></div><input type="text" id="dropoff-text" class="native-input" placeholder="Nhập điểm đến..."></div>
               </div>
               <div class="swap-btn" onclick="swapRoute()">⇅</div>
@@ -648,6 +675,12 @@
             <div class="quick-chip" style="margin-top:14px; display:inline-block;">📍 Xem điểm đón trên bản đồ</div>
           </a>
 
+          <div class="card" id="detail-package-row" style="display:none; margin-top:14px;">
+            <div class="card-name" style="font-size:13.5px;font-weight:700;margin-bottom:6px;">📦 Thông tin hàng gửi</div>
+            <div class="hint-line" style="text-align:left; margin:0;" id="detail-package-desc"></div>
+            <div class="hint-line" style="text-align:left; margin:6px 0 0;" id="detail-package-receiver"></div>
+          </div>
+
           <div class="driver-row" id="detail-driver-row" style="display:none; margin-top:14px;">
             <div class="driver-avatar" id="detail-driver-avatar" style="width:44px;height:44px;"></div>
             <div class="info">
@@ -658,6 +691,12 @@
               <a href="#" id="detail-driver-call" style="text-decoration:none;"><div class="round-btn call">📞</div></a>
             </div>
           </div>
+
+          <div class="quick-chip-row" id="track-driver-row" style="display:none; margin-top:10px;">
+            <div class="quick-chip" onclick="toggleDriverMap()" id="track-driver-btn">🚕 Xem vị trí tài xế trực tiếp</div>
+          </div>
+          <div id="driver-track-map" style="display:none; height:220px; border-radius:14px; overflow:hidden; margin-top:10px; border:1px solid var(--border-steel);"></div>
+          <div class="hint-line" id="track-driver-status" style="display:none; margin-top:6px;"></div>
 
           <div class="hint-line" style="margin-top:14px;">Admin sẽ liên hệ để xác nhận giờ đón chính xác trước khi khởi hành.</div>
 
@@ -801,6 +840,15 @@
               <div class="field-input"><input type="text" id="settings-phone-input" class="native-input"></div>
             </div>
             <button class="btn-full" id="settings-save-btn" onclick="saveAccountSettings()">Lưu thay đổi</button>
+          </div>
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-name" style="font-size:14px;font-weight:700;color:var(--text-fog);margin-bottom:8px;">🎁 Giới thiệu bạn bè</div>
+            <div class="hint-line" style="text-align:left; margin-bottom:10px;">Gửi mã này cho bạn bè — cả 2 người đều nhận voucher giảm 20.000đ khi họ đăng ký!</div>
+            <div class="onboard-input-row" style="margin-bottom:10px;">
+              <input type="text" id="my-referral-code" class="native-input" readonly>
+            </div>
+            <button class="btn-tiny ghost" onclick="copyReferralCode()">📋 Sao chép mã</button>
+            <div class="hint-line" id="referral-count-text" style="text-align:left; margin-top:10px;"></div>
           </div>
           <div class="card" style="margin-bottom:16px;">
             <div class="card-name" style="font-size:14px;font-weight:700;color:var(--text-fog);margin-bottom:8px;">Thông báo</div>
@@ -950,6 +998,7 @@
     if (ready && window.saveCustomerToFirestore) {
       try {
         const existingId = localStorage.getItem('xn_customer_id');
+        const isNewCustomer = !existingId;
         const id = await window.saveCustomerToFirestore(existingId, name, phone);
         localStorage.setItem('xn_customer_id', id);
         localStorage.setItem('xn_customer_name', name);
@@ -958,6 +1007,13 @@
           await window.updateCustomerPhoto(id, pendingPhotoBase64);
           document.getElementById('profile-avatar-display').style.backgroundImage = 'url(' + pendingPhotoBase64 + ')';
           document.getElementById('profile-avatar-display').textContent = '';
+        }
+        if (isNewCustomer) {
+          const refCode = document.getElementById('referral-code-input').value.trim();
+          if (refCode && refCode !== id && window.processReferral) {
+            try { await window.processReferral(refCode, id, name); }
+            catch (err) { console.error('Lỗi xử lý mã giới thiệu:', err); }
+          }
         }
         if (window.listenForMessages) window.listenForMessages(id);
         if (window.listenForAddresses) window.listenForAddresses(id);
@@ -1031,15 +1087,37 @@
       mapLink.style.display = 'none';
     }
 
+    const packageRow = document.getElementById('detail-package-row');
+    if (el.dataset.type === 'gui_hang') {
+      packageRow.style.display = 'block';
+      document.getElementById('detail-package-desc').textContent = 'Hàng hóa: ' + el.dataset.packagedesc;
+      document.getElementById('detail-package-receiver').textContent = 'Người nhận: ' + el.dataset.receivername + (el.dataset.receiverphone ? ' - ' + el.dataset.receiverphone : '');
+    } else {
+      packageRow.style.display = 'none';
+    }
+
     const driverRow = document.getElementById('detail-driver-row');
+    const trackRow = document.getElementById('track-driver-row');
     if (el.dataset.drivername) {
       driverRow.style.display = 'flex';
       document.getElementById('detail-driver-avatar').textContent = el.dataset.drivername.charAt(0);
       document.getElementById('detail-driver-name').textContent = el.dataset.drivername;
       document.getElementById('detail-driver-car').textContent = el.dataset.drivercar || '';
       document.getElementById('detail-driver-call').href = el.dataset.driverphone ? ('tel:' + el.dataset.driverphone) : '#';
+
+      if (el.dataset.driverid && el.dataset.status !== 'done' && el.dataset.status !== 'cancelled') {
+        trackRow.style.display = 'flex';
+        currentTrackDriverId = el.dataset.driverid;
+        currentTrackPickupLat = el.dataset.pickuplat ? parseFloat(el.dataset.pickuplat) : null;
+        currentTrackPickupLng = el.dataset.pickuplng ? parseFloat(el.dataset.pickuplng) : null;
+      } else {
+        trackRow.style.display = 'none';
+        stopDriverMapTracking();
+      }
     } else {
       driverRow.style.display = 'none';
+      trackRow.style.display = 'none';
+      stopDriverMapTracking();
     }
 
     const ratingSection = document.getElementById('detail-rating-section');
@@ -1098,7 +1176,78 @@
       }
     }
   }
+  let currentTrackDriverId = null;
+  let currentTrackPickupLat = null;
+  let currentTrackPickupLng = null;
+  let driverMapInstance = null;
+  let driverMapMarker = null;
+  let pickupMapMarker = null;
+  let unsubDriverTracking = null;
+  let mapVisible = false;
+
+  window.toggleDriverMap = async function(){
+    const mapDiv = document.getElementById('driver-track-map');
+    const statusEl = document.getElementById('track-driver-status');
+    const btn = document.getElementById('track-driver-btn');
+    mapVisible = !mapVisible;
+
+    if (!mapVisible) {
+      mapDiv.style.display = 'none';
+      statusEl.style.display = 'none';
+      btn.textContent = '🚕 Xem vị trí tài xế trực tiếp';
+      stopDriverMapTracking();
+      return;
+    }
+
+    mapDiv.style.display = 'block';
+    statusEl.style.display = 'block';
+    btn.textContent = '✕ Ẩn bản đồ';
+
+    if (!driverMapInstance) {
+      driverMapInstance = L.map('driver-track-map').setView([13.9, 108.0], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+      }).addTo(driverMapInstance);
+    }
+    setTimeout(() => { driverMapInstance.invalidateSize(); }, 200);
+
+    if (currentTrackPickupLat && currentTrackPickupLng) {
+      if (pickupMapMarker) driverMapInstance.removeLayer(pickupMapMarker);
+      pickupMapMarker = L.marker([currentTrackPickupLat, currentTrackPickupLng])
+        .addTo(driverMapInstance).bindPopup('📍 Điểm đón của bạn');
+      driverMapInstance.setView([currentTrackPickupLat, currentTrackPickupLng], 13);
+    }
+
+    const ready = await waitForFirebaseReady();
+    if (ready && window.listenForDriverLocation && currentTrackDriverId) {
+      if (unsubDriverTracking) unsubDriverTracking();
+      unsubDriverTracking = window.listenForDriverLocation(currentTrackDriverId, (lat, lng, updatedAt) => {
+        if (!lat || !lng) {
+          statusEl.textContent = 'Tài xế chưa bật chia sẻ vị trí.';
+          return;
+        }
+        statusEl.textContent = '🟢 Cập nhật vị trí tài xế theo thời gian thực';
+        if (driverMapMarker) {
+          driverMapMarker.setLatLng([lat, lng]);
+        } else {
+          driverMapMarker = L.marker([lat, lng], {
+            icon: L.divIcon({ html: '🚕', className: 'driver-map-icon', iconSize: [30, 30] })
+          }).addTo(driverMapInstance).bindPopup('🚕 Tài xế');
+        }
+        if (!currentTrackPickupLat) driverMapInstance.setView([lat, lng], 14);
+      });
+    }
+  };
+
+  function stopDriverMapTracking(){
+    if (unsubDriverTracking) { unsubDriverTracking(); unsubDriverTracking = null; }
+    driverMapMarker = null;
+    pickupMapMarker = null;
+    mapVisible = false;
+  }
+
   function closeTripDetail(){
+    stopDriverMapTracking();
     closeThread();
   }
   async function cancelCurrentBooking(){
@@ -1160,7 +1309,21 @@
     if (id === 'screen-account-settings') {
       document.getElementById('settings-name-input').value = localStorage.getItem('xn_customer_name') || '';
       document.getElementById('settings-phone-input').value = localStorage.getItem('xn_customer_phone') || '';
+      const myId = localStorage.getItem('xn_customer_id') || '';
+      document.getElementById('my-referral-code').value = myId;
+      if (myId && window.countReferrals) {
+        window.countReferrals(myId).then((n) => {
+          document.getElementById('referral-count-text').textContent = 'Bạn đã giới thiệu được ' + n + ' người bạn 🎉';
+        });
+      }
     }
+  }
+  function copyReferralCode(){
+    const input = document.getElementById('my-referral-code');
+    input.select();
+    navigator.clipboard && navigator.clipboard.writeText(input.value).then(() => {
+      alert('Đã sao chép mã! Gửi cho bạn bè để cùng nhận voucher nhé.');
+    }).catch(() => { alert('Mã của bạn: ' + input.value); });
   }
 
   function resizeImageFile(file, maxSize, quality){
@@ -1320,6 +1483,11 @@
       try {
         const mapUrl = lastGpsCoords ? ('https://www.google.com/maps?q=' + lastGpsCoords.lat + ',' + lastGpsCoords.lon) : '';
         const fixed = window.getFixedPrice ? window.getFixedPrice(pickup, dropoff) : null;
+        const isPackage = currentServiceType === 'package';
+        const packageDesc = isPackage ? document.getElementById('package-desc-input').value.trim() : '';
+        const receiverName = isPackage ? document.getElementById('package-receiver-name').value.trim() : '';
+        const receiverPhone = isPackage ? document.getElementById('package-receiver-phone').value.trim() : '';
+        if (isPackage && !packageDesc) { alert('Bạn mô tả hàng hóa trước nhé.'); if (btn){btn.textContent='Gửi yêu cầu chuyển hàng';btn.disabled=false;} return; }
         const newId = await window.createBookingInFirestore({
           customerId: customerId,
           customerName: customerName,
@@ -1327,12 +1495,15 @@
           dropoff: dropoff,
           date: date,
           time: time,
-          type: 'thoa_thuan',
+          type: isPackage ? 'gui_hang' : 'thoa_thuan',
           status: fixed && fixed.price ? 'confirmed' : 'requested',
           price: fixed && fixed.price ? fixed.price : '',
           pickupLat: lastGpsCoords ? lastGpsCoords.lat : null,
           pickupLng: lastGpsCoords ? lastGpsCoords.lon : null,
-          pickupMapUrl: mapUrl
+          pickupMapUrl: mapUrl,
+          packageDesc: packageDesc,
+          receiverName: receiverName,
+          receiverPhone: receiverPhone
         });
         localStorage.setItem('xn_last_booking_id', newId);
         if (mapUrl && window.sendMessageToFirestore) {
@@ -1388,6 +1559,16 @@
       alert('Có lỗi khi tính khoảng cách, thử lại nhé.');
     }
   }
+  let currentServiceType = 'passenger';
+  function setServiceType(type){
+    currentServiceType = type;
+    document.getElementById('service-type-passenger').classList.toggle('on', type === 'passenger');
+    document.getElementById('service-type-package').classList.toggle('on', type === 'package');
+    document.getElementById('package-fields').style.display = type === 'package' ? 'block' : 'none';
+    document.getElementById('pickup-label').textContent = type === 'package' ? 'Nơi gửi hàng' : 'Điểm đón';
+    document.getElementById('dropoff-label').textContent = type === 'package' ? 'Nơi nhận hàng' : 'Điểm đến';
+    document.getElementById('submit-request-btn').textContent = type === 'package' ? 'Gửi yêu cầu chuyển hàng' : 'Gửi yêu cầu thỏa thuận giá';
+  }
   function useCustomRoute(){
     document.getElementById('dropoff-text').value = '';
     document.getElementById('dropoff-text').focus();
@@ -1430,7 +1611,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
     getFirestore, collection, doc, addDoc, setDoc, updateDoc, serverTimestamp,
-    query, where, orderBy, onSnapshot, arrayUnion, arrayRemove, getDocs
+    query, where, orderBy, onSnapshot, arrayUnion, arrayRemove, getDocs, getDoc
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
@@ -1498,6 +1679,54 @@
     return { id: docSnap.id, ...docSnap.data() };
   };
 
+  window.processReferral = async function (referrerId, newCustomerId, newCustomerName) {
+    const referrerSnap = await getDoc(doc(db, "customers", referrerId));
+    if (!referrerSnap.exists()) return;
+    const referrerData = referrerSnap.data();
+
+    await setDoc(doc(db, "customers", newCustomerId), {
+      referredBy: referrerId,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    await addDoc(collection(db, "vouchers"), {
+      customerId: newCustomerId,
+      code: "CHAOMUNG",
+      description: "Chào mừng bạn mới! Giảm 20.000đ cho chuyến đầu tiên",
+      status: "active",
+      createdAt: serverTimestamp()
+    });
+
+    await addDoc(collection(db, "vouchers"), {
+      customerId: referrerId,
+      code: "CAMONGT",
+      description: "Cảm ơn bạn đã giới thiệu " + (newCustomerName || "bạn bè") + "! Giảm 20.000đ cho chuyến tiếp theo",
+      status: "active",
+      createdAt: serverTimestamp()
+    });
+
+    await addDoc(collection(db, "messages"), {
+      threadId: referrerId,
+      sender: "them",
+      senderName: "Quản lý",
+      text: "🎁 " + (newCustomerName || "Bạn bè") + " đã đăng ký qua mã giới thiệu của bạn! Bạn vừa nhận được 1 voucher, xem trong mục Cá nhân > Voucher khuyến mãi nhé.",
+      createdAt: serverTimestamp()
+    });
+  };
+
+  window.countReferrals = async function (customerId) {
+    const q = query(collection(db, "customers"), where("referredBy", "==", customerId));
+    const snap = await getDocs(q);
+    return snap.size;
+  };
+
+  window.listenForDriverLocation = function (driverId, callback) {
+    return onSnapshot(doc(db, "drivers", driverId), (snap) => {
+      const data = snap.data() || {};
+      callback(data.liveLat || null, data.liveLng || null, data.liveUpdatedAt || null);
+    });
+  };
+
   window.saveCustomerToFirestore = async function (existingId, name, phone) {
     if (existingId) {
       await setDoc(doc(db, "customers", existingId), {
@@ -1529,6 +1758,9 @@
       pickupLat: data.pickupLat || null,
       pickupLng: data.pickupLng || null,
       pickupMapUrl: data.pickupMapUrl || '',
+      packageDesc: data.packageDesc || '',
+      receiverName: data.receiverName || '',
+      receiverPhone: data.receiverPhone || '',
       createdAt: serverTimestamp()
     });
     return docRef.id;
@@ -1722,11 +1954,19 @@
           ' data-status="' + escapeHtml(b.status || 'requested') + '"' +
           ' data-mapurl="' + escapeHtml(b.pickupMapUrl || '') + '"' +
           ' data-drivername="' + escapeHtml(b.driverName || '') + '"' +
+          ' data-driverid="' + escapeHtml(b.driverId || '') + '"' +
+          ' data-pickuplat="' + (b.pickupLat || '') + '"' +
+          ' data-pickuplng="' + (b.pickupLng || '') + '"' +
           ' data-drivercar="' + escapeHtml(b.driverCar || '') + '"' +
           ' data-driverphone="' + escapeHtml(b.driverPhone || '') + '"' +
           ' data-rating="' + (b.rating || '') + '"' +
-          ' data-ratingcomment="' + escapeHtml(b.ratingComment || '') + '">' +
+          ' data-ratingcomment="' + escapeHtml(b.ratingComment || '') + '"' +
+          ' data-type="' + escapeHtml(b.type || '') + '"' +
+          ' data-packagedesc="' + escapeHtml(b.packageDesc || '') + '"' +
+          ' data-receivername="' + escapeHtml(b.receiverName || '') + '"' +
+          ' data-receiverphone="' + escapeHtml(b.receiverPhone || '') + '">' +
           '<div class="booking-top"><div><div class="booking-name">' + escapeHtml(b.customerName || 'Khách') +
+          (b.type === 'gui_hang' ? ' <span style="font-size:10px;color:var(--blue);">📦 Gửi hàng</span>' : '') +
           '</div><div class="booking-time">' + escapeHtml(b.date || '') + ' · ' + escapeHtml(b.time || '') + '</div></div>' +
           '<div class="status-badge ' + badge.cls + '">' + badge.text + '</div></div>' +
           '<div class="booking-route"><b>' + escapeHtml(b.pickup || '') + '</b> → <b>' + escapeHtml(b.dropoff || '') + '</b></div>' +
