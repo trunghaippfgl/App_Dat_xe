@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Quản lý - Xe Nhà</title>
+<link rel="manifest" href="quanlyxe-manifest.json">
+<link rel="apple-touch-icon" href="admin-icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="QL Xe Nhà">
+<meta name="theme-color" content="#12161D">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-asphalt-900:#12161D;
+    --surface-800:#1C2129;
+    --surface-700:#262D38;
+    --surface-600:#2F3846;
+    --border-steel:#3A4453;
+    --text-fog:#ECEFF3;
+    --text-muted:#8B93A1;
+    --text-dim:#5C6472;
+    --accent-amber:#F2A93B;
+    --accent-amber-dim:rgba(242,169,59,0.14);
+    --route-green:#34C77B;
+    --route-green-dim:rgba(52,199,123,0.14);
+    --alert-red:#E5595D;
+    --alert-red-dim:rgba(229,89,93,0.14);
+    --blue:#7CA3FF;
+    --blue-dim:rgba(91,140,255,0.14);
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html, body{ height:100%; }
+  body{
+    font-family:'Be Vietnam Pro', sans-serif;
+    background:var(--bg-asphalt-900);
+    min-height:100vh;
+    color:var(--text-fog);
+  }
+  .mono{ font-family:'JetBrains Mono', monospace; }
+  .app{ max-width:760px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; }
+
+  .topbar{ display:flex; align-items:center; justify-content:space-between; padding:18px 18px 14px;
+    border-bottom:1px solid var(--border-steel); }
+  .topbar h1{ font-size:19px; font-weight:800; }
+  .topbar .sub{ font-size:11.5px; color:var(--text-muted); margin-top:2px; }
+  .notif-btn{ background:var(--surface-700); border:1px solid var(--border-steel); color:var(--accent-amber);
+    font-size:12px; font-weight:700; padding:8px 12px; border-radius:10px; cursor:pointer; font-family:inherit; }
+  .notif-btn.on{ background:var(--route-green-dim); color:var(--route-green); border-color:transparent; }
+
+  .tabs{ display:flex; border-bottom:1px solid var(--border-steel); flex-shrink:0; }
+  .tab-btn{ flex:1; text-align:center; padding:13px 0; font-size:13px; font-weight:700; color:var(--text-dim);
+    cursor:pointer; border-bottom:2px solid transparent; }
+  .tab-btn.active{ color:var(--accent-amber); border-bottom-color:var(--accent-amber); }
+
+  .panel{ display:none; flex:1; flex-direction:column; min-height:0; }
+  .panel.active{ display:flex; }
+
+  .chiprow{ display:flex; gap:8px; padding:14px 16px 4px; flex-wrap:wrap; flex-shrink:0; }
+  .chip{ font-size:12px; font-weight:600; color:var(--text-muted); background:var(--surface-800);
+    border:1px solid var(--border-steel); padding:6px 12px; border-radius:100px; cursor:pointer; }
+  .chip.on{ background:var(--accent-amber-dim); color:var(--accent-amber); border-color:rgba(242,169,59,0.4); }
+
+  .scroll{ flex:1; overflow-y:auto; padding:14px 16px 24px; }
+
+  .card{ background:var(--surface-800); border:1px solid var(--border-steel); border-radius:16px;
+    padding:14px; margin-bottom:12px; }
+  .card-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; gap:8px; }
+  .card-name{ font-size:14.5px; font-weight:700; }
+  .card-time{ font-size:11.5px; color:var(--text-muted); margin-top:2px; }
+  .status-badge{ font-size:10.5px; font-weight:800; padding:4px 10px; border-radius:100px; white-space:nowrap; }
+  .status-badge.requested{ background:var(--accent-amber-dim); color:var(--accent-amber); }
+  .status-badge.confirmed{ background:var(--blue-dim); color:var(--blue); }
+  .status-badge.done{ background:var(--route-green-dim); color:var(--route-green); }
+  .status-badge.cancelled{ background:var(--alert-red-dim); color:var(--alert-red); }
+  .card-route{ font-size:13px; color:var(--text-muted); margin-bottom:10px; }
+  .card-route b{ color:var(--text-fog); font-weight:600; }
+  .card-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .card-actions input{ flex:1; min-width:90px; background:var(--bg-asphalt-900); border:1px solid var(--border-steel);
+    border-radius:9px; padding:8px 10px; color:var(--text-fog); font-size:13px; font-family:inherit; outline:none; }
+  .btn-tiny{ background:var(--accent-amber); color:#1A1200; border:none; font-weight:700; font-size:12px;
+    padding:8px 12px; border-radius:9px; font-family:inherit; cursor:pointer; white-space:nowrap; }
+  .btn-tiny.ghost{ background:var(--surface-700); color:var(--text-fog); border:1px solid var(--border-steel); }
+  .btn-tiny.red{ background:var(--alert-red-dim); color:var(--alert-red); }
+  .btn-tiny.blue{ background:var(--blue-dim); color:var(--blue); }
+  .map-link{ font-size:11.5px; color:var(--accent-amber); font-weight:600; display:inline-block; margin-top:6px; }
+
+  .empty-state{ text-align:center; color:var(--text-dim); font-size:13px; padding:50px 20px; line-height:1.6; }
+
+  /* chat tab */
+  .lookup-row{ display:flex; gap:8px; padding:14px 16px; border-bottom:1px solid var(--border-steel); flex-shrink:0; }
+  .lookup-row input{ flex:1; background:var(--surface-800); border:1px solid var(--border-steel); border-radius:12px;
+    padding:11px 14px; color:var(--text-fog); font-size:13.5px; font-family:inherit; outline:none; }
+  .chat-header{ padding:12px 16px; border-bottom:1px solid var(--border-steel); flex-shrink:0; display:none; }
+  .chat-header.on{ display:flex; align-items:center; justify-content:space-between; }
+  .chat-header .name{ font-size:14.5px; font-weight:700; }
+  .chat-header .phone{ font-size:11.5px; color:var(--text-muted); margin-top:1px; }
+  .thread-scroll{ flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .bubble-row{ display:flex; }
+  .bubble-row.them{ justify-content:flex-end; }
+  .bubble-row.me{ justify-content:flex-start; }
+  .bubble{ max-width:78%; padding:9px 13px; border-radius:16px; font-size:13.5px; line-height:1.45; }
+  .bubble-row.me .bubble{ background:var(--surface-700); color:var(--text-fog); border-bottom-left-radius:4px; }
+  .bubble-row.them .bubble{ background:var(--accent-amber); color:#1A1200; font-weight:500; border-bottom-right-radius:4px; }
+  .bubble-time{ font-size:10px; color:var(--text-dim); margin-top:3px; padding:0 4px; }
+  .composer{ display:none; padding:10px 12px; gap:8px; align-items:center; border-top:1px solid var(--border-steel); flex-shrink:0; }
+  .composer.on{ display:flex; }
+  .composer input{ flex:1; background:var(--surface-800); border:1px solid var(--border-steel); border-radius:20px;
+    padding:10px 16px; color:var(--text-fog); font-size:13.5px; font-family:inherit; outline:none; }
+  .composer .send{ width:38px; height:38px; border-radius:12px; background:var(--accent-amber); display:flex;
+    align-items:center; justify-content:center; flex-shrink:0; cursor:pointer; color:#1A1200; font-weight:700; border:none; }
+
+  .unread-dot{ display:inline-block; width:8px; height:8px; border-radius:100px; background:var(--alert-red); margin-left:5px; vertical-align:middle; }
+
+  /* driver tab */
+  .driver-card{ display:flex; align-items:center; gap:12px; background:var(--surface-800); border:1px solid var(--border-steel);
+    border-radius:16px; padding:12px 14px; margin-bottom:10px; }
+  .driver-avatar{ width:44px; height:44px; border-radius:13px; background:linear-gradient(155deg,#F2A93B,#E0872A);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; color:#12161D; flex-shrink:0; }
+  .driver-info{ flex:1; min-width:0; }
+  .driver-name{ font-size:14px; font-weight:700; }
+  .driver-detail{ font-size:11.5px; color:var(--text-muted); margin-top:1px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div>
+      <h1>Quản lý Xe Nhà</h1>
+      <div class="sub">Bảng điều khiển cho admin</div>
+    </div>
+    <button class="notif-btn" id="notif-btn" onclick="enableNotifications()">🔔 Bật thông báo</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab-btn active" id="tab-bookings" onclick="switchTab('bookings')">Đơn hàng</div>
+    <div class="tab-btn" id="tab-customers" onclick="switchTab('customers')">Khách hàng</div>
+    <div class="tab-btn" id="tab-chat" onclick="switchTab('chat')">Trò chuyện</div>
+    <div class="tab-btn" id="tab-drivers" onclick="switchTab('drivers')">Tài xế</div>
+    <div class="tab-btn" id="tab-settings" onclick="switchTab('settings')">Cài đặt</div>
+  </div>
+
+  <!-- BOOKINGS PANEL -->
+  <div class="panel active" id="panel-bookings">
+    <div class="chiprow" id="booking-filters">
+      <div class="chip on" data-filter="all" onclick="setBookingFilter('all')">Tất cả</div>
+      <div class="chip" data-filter="requested" onclick="setBookingFilter('requested')">Chờ chốt giá</div>
+      <div class="chip" data-filter="confirmed" onclick="setBookingFilter('confirmed')">Đã chốt</div>
+      <div class="chip" data-filter="done" onclick="setBookingFilter('done')">Hoàn thành</div>
+      <div class="chip" data-filter="cancelled" onclick="setBookingFilter('cancelled')">Đã hủy</div>
+    </div>
+    <div class="scroll">
+      <div id="bookings-list"></div>
+      <div class="empty-state" id="bookings-empty" style="display:none;">Chưa có đơn đặt xe nào.</div>
+    </div>
+  </div>
+
+  <!-- CUSTOMERS PANEL -->
+  <div class="panel" id="panel-customers">
+    <div class="scroll">
+      <div id="customers-list"></div>
+      <div class="empty-state" id="customers-empty" style="display:none;">Chưa có khách hàng nào đăng ký.</div>
+    </div>
+  </div>
+
+  <!-- CHAT PANEL -->
+  <div class="panel" id="panel-chat">
+    <div class="lookup-row">
+      <input type="text" id="chat-phone-input" placeholder="Nhập SĐT khách để tìm cuộc trò chuyện">
+      <button class="btn-tiny" onclick="findChatByPhone()">Tìm</button>
+    </div>
+    <div class="chat-header" id="chat-header">
+      <div>
+        <div class="name" id="chat-header-name"></div>
+        <div class="phone" id="chat-header-phone"></div>
+      </div>
+      <a href="#" id="chat-call-btn" style="text-decoration:none;"><button class="btn-tiny blue">📞 Gọi</button></a>
+    </div>
+    <div class="thread-scroll" id="admin-thread-scroll">
+      <div class="empty-state" id="chat-empty">Tìm khách theo số điện thoại, hoặc bấm "💬 Nhắn tin" từ 1 đơn hàng để mở cuộc trò chuyện.</div>
+    </div>
+    <div class="composer" id="admin-composer">
+      <input type="text" id="admin-chat-input" placeholder="Nhắn tin cho khách..." onkeypress="if(event.key==='Enter') sendAdminMessage()">
+      <button class="send" onclick="sendAdminMessage()">➤</button>
+    </div>
+  </div>
+
+  <!-- DRIVERS PANEL -->
+  <div class="panel" id="panel-drivers">
+    <div class="scroll">
+      <button class="btn-tiny" style="margin-bottom:12px;" onclick="addDriverFromAdmin()">+ Thêm tài xế mới</button>
+      <div id="drivers-list"></div>
+      <div class="empty-state" id="drivers-empty" style="display:none;">Chưa có tài xế nào đăng ký. Gửi link trang đăng ký tài xế cho họ nhé.</div>
+    </div>
+  </div>
+
+  <!-- SETTINGS PANEL -->
+  <div class="panel" id="panel-settings">
+    <div class="scroll">
+      <div class="card">
+        <div class="card-name" style="margin-bottom:10px;">Số điện thoại admin (khách gọi trực tiếp)</div>
+        <div class="card-actions">
+          <input type="text" id="settings-phone-input" placeholder="090xxxxxxx">
+          <button class="btn-tiny" onclick="saveGeneralSettings()">Lưu</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-name" style="margin-bottom:10px;">Đơn giá mỗi km (để khách ước tính giá)</div>
+        <div class="card-actions">
+          <input type="text" id="settings-rate-input" placeholder="VD: 12000">
+          <button class="btn-tiny" onclick="saveGeneralSettings()">Lưu</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-name" style="margin-bottom:10px;">Giá cố định cho tuyến quen thuộc</div>
+        <div id="route-price-rows"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getFirestore, collection, doc, updateDoc, setDoc, deleteDoc, serverTimestamp,
+    query, where, orderBy, onSnapshot, limit, getDocs
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBb8uSsLuChx4OYONl2ffFFwDSbSncZBpI",
+    authDomain: "hainguyen-ffb25.firebaseapp.com",
+    projectId: "hainguyen-ffb25",
+    storageBucket: "hainguyen-ffb25.firebasestorage.app",
+    messagingSenderId: "837257334024",
+    appId: "1:837257334024:web:583b46747d823b4c83f0bd",
+    measurementId: "G-1CC6JB312T"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const messaging = getMessaging(app);
+  const VAPID_KEY = "BHZahFM6YdPRj7uA1b6FgNh7UIegA_5nfu2sTIShQrWnRSY1UuRTDAsscUnmCR4vVNv6YAOnoVzNT5dcbhcTJzk";
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+  function formatTime(ts){
+    if (!ts || !ts.toDate) return '';
+    const d = ts.toDate();
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+  function statusLabel(status){
+    if (status === 'confirmed') return 'Đã chốt giá';
+    if (status === 'done') return 'Hoàn thành';
+    if (status === 'cancelled') return 'Đã hủy';
+    return 'Chờ chốt giá';
+  }
+
+  /* ---------- TABS ---------- */
+  window.switchTab = function(name){
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+  };
+
+  /* ---------- NOTIFICATIONS (real push via FCM) ---------- */
+  window.enableNotifications = function(){
+    if (!('Notification' in window)) { alert('Trình duyệt này không hỗ trợ thông báo.'); return; }
+    const btn = document.getElementById('notif-btn');
+    btn.textContent = 'Đang bật...';
+
+    Notification.requestPermission().then((perm) => {
+      if (perm !== 'granted') {
+        alert('Bạn chưa cho phép thông báo. Có thể bật lại trong cài đặt trình duyệt.');
+        btn.textContent = '🔔 Bật thông báo';
+        return;
+      }
+      navigator.serviceWorker.register('firebase-messaging-sw.js').then((registration) => {
+        getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration })
+          .then((token) => {
+            if (!token) {
+              alert('Không lấy được mã thông báo, thử lại nhé.');
+              btn.textContent = '🔔 Bật thông báo';
+              return;
+            }
+            addDoc(collection(db, "adminTokens"), { token: token, createdAt: serverTimestamp() })
+              .then(() => {
+                btn.textContent = '✓ Đã bật thông báo';
+                btn.classList.add('on');
+              });
+          })
+          .catch((err) => {
+            console.error('FCM token error:', err);
+            alert('Có lỗi khi đăng ký thông báo: ' + err.message);
+            btn.textContent = '🔔 Bật thông báo';
+          });
+      });
+    });
+  };
+
+  // Foreground messages: FCM doesn't auto-show a system notification while the tab is open,
+  // so show a simple in-page alert instead.
+  onMessage(messaging, (payload) => {
+    const title = (payload.notification && payload.notification.title) || 'Thông báo mới';
+    const body = (payload.notification && payload.notification.body) || '';
+    alert(title + '\n' + body);
+  });
+
+  let firstBookingLoad = true;
+  let firstMessageLoad = true;
+  let lastSeenBookingId = null;
+  let lastSeenMessageId = null;
+
+  /* ---------- BOOKINGS ---------- */
+  let allBookings = [];
+  let bookingFilter = 'all';
+
+  window.setBookingFilter = function(filter){
+    bookingFilter = filter;
+    document.querySelectorAll('#booking-filters .chip').forEach((c) => {
+      c.classList.toggle('on', c.dataset.filter === filter);
+    });
+    renderBookings();
+  };
+
+  function renderBookings(){
+    const container = document.getElementById('bookings-list');
+    const emptyEl = document.getElementById('bookings-empty');
+    const rows = bookingFilter === 'all' ? allBookings : allBookings.filter(b => b.status === bookingFilter);
+    if (rows.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    rows.forEach((b) => {
+      const mapLine = b.pickupMapUrl ? '<a class="map-link" href="' + escapeHtml(b.pickupMapUrl) + '" target="_blank">📍 Xem điểm đón trên bản đồ</a><br>' : '';
+      let driverOptions = '<option value="">-- Gán tài xế --</option>';
+      driversCache.forEach((d) => {
+        driverOptions += '<option value="' + d.id + '"' + (b.driverId === d.id ? ' selected' : '') + '>' + escapeHtml(d.name || '') + '</option>';
+      });
+      const ratingLine = b.rating ? '<div style="font-size:12px;color:var(--accent-amber);margin-top:6px;">' +
+        '★'.repeat(b.rating) + '☆'.repeat(5 - b.rating) + (b.ratingComment ? (' — ' + escapeHtml(b.ratingComment)) : '') + '</div>' : '';
+      const packageLine = b.type === 'gui_hang' ? '<div style="font-size:12px;color:var(--blue);margin-bottom:6px;">📦 Gửi hàng: ' +
+        escapeHtml(b.packageDesc || '') + ' — Người nhận: ' + escapeHtml(b.receiverName || '') +
+        (b.receiverPhone ? ' (' + escapeHtml(b.receiverPhone) + ')' : '') + '</div>' : '';
+      html += '<div class="card">' +
+        '<div class="card-top"><div><div class="card-name">' + escapeHtml(b.customerName || 'Khách') +
+        '</div><div class="card-time">' + escapeHtml(b.date || '') + ' · ' + escapeHtml(b.time || '') + '</div></div>' +
+        '<div class="status-badge ' + (b.status || 'requested') + '">' + statusLabel(b.status) + '</div></div>' +
+        '<div class="card-route"><b>' + escapeHtml(b.pickup || '') + '</b> → <b>' + escapeHtml(b.dropoff || '') + '</b></div>' +
+        packageLine + mapLine + ratingLine +
+        '<div class="card-actions">' +
+        '<select id="driver-select-' + b.id + '" onchange="assignDriver(\'' + b.id + '\', this.value)" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);font-size:12.5px;padding:8px;">' + driverOptions + '</select>' +
+        '</div>' +
+        '<div class="card-actions">' +
+        '<input type="text" placeholder="Giá (VD: 120k)" value="' + escapeHtml(b.price || '') + '" id="price-input-' + b.id + '">' +
+        '<button class="btn-tiny" onclick="confirmBookingPrice(\'' + b.id + '\')">Chốt giá</button>' +
+        '<button class="btn-tiny blue" onclick="openChatForCustomer(\'' + b.customerId + '\', \'' + escapeHtml(b.customerName || 'Khách').replace(/'/g,"") + '\')">💬 Nhắn tin</button>' +
+        '<button class="btn-tiny ghost" onclick="setBookingStatus(\'' + b.id + '\', \'done\')">Hoàn thành</button>' +
+        '<button class="btn-tiny red" onclick="setBookingStatus(\'' + b.id + '\', \'cancelled\')">Hủy</button>' +
+        '</div></div>';
+    });
+    container.innerHTML = html;
+  }
+
+  window.assignDriver = async function(bookingId, driverId){
+    if (!driverId) return;
+    const driver = driversCache.find((d) => d.id === driverId);
+    if (!driver) return;
+    try {
+      await updateDoc(doc(db, "bookings", bookingId), {
+        driverId: driverId,
+        driverName: driver.name || '',
+        driverCar: driver.car || '',
+        driverPhone: driver.phone || '',
+        updatedAt: serverTimestamp()
+      });
+    } catch (err) { console.error(err); alert('Có lỗi khi gán tài xế.'); }
+  };
+
+  window.confirmBookingPrice = async function(bookingId){
+    const input = document.getElementById('price-input-' + bookingId);
+    const price = input.value.trim();
+    if (!price) { alert('Bạn nhập giá trước nhé.'); return; }
+    try {
+      await updateDoc(doc(db, "bookings", bookingId), { status: 'confirmed', price: price, updatedAt: serverTimestamp() });
+    } catch (err) { console.error(err); alert('Có lỗi khi cập nhật giá.'); }
+  };
+
+  window.setBookingStatus = async function(bookingId, status){
+    try {
+      await updateDoc(doc(db, "bookings", bookingId), { status: status, updatedAt: serverTimestamp() });
+    } catch (err) { console.error(err); alert('Có lỗi khi cập nhật trạng thái.'); }
+  };
+
+  function listenForAllBookings(){
+    const q = query(collection(db, "bookings"), orderBy("createdAt", "desc"));
+    onSnapshot(q, (snapshot) => {
+      allBookings = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderBookings();
+      renderDriversList();
+    });
+  }
+
+  /* ---------- CHAT ---------- */
+  let currentChatCustomerId = null;
+  let unsubChat = null;
+
+  window.findChatByPhone = async function(){
+    const phone = document.getElementById('chat-phone-input').value.trim();
+    if (!phone) { alert('Bạn nhập số điện thoại trước nhé.'); return; }
+    try {
+      const q = query(collection(db, "customers"), where("phone", "==", phone));
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) { alert('Không tìm thấy khách hàng với số này.'); return; }
+      const docSnap = snapshot.docs[0];
+      const data = docSnap.data();
+      openChatFor(docSnap.id, data.name || 'Khách', data.phone || phone);
+    } catch (err) { console.error(err); alert('Có lỗi khi tìm khách hàng.'); }
+  };
+
+  window.openChatForCustomer = function(customerId, customerName){
+    const found = customersCache.find((c) => c.id === customerId);
+    openChatFor(customerId, customerName, found ? found.phone : '');
+  };
+
+  window.openChatFor = function(customerId, customerName, customerPhone){
+    switchTab('chat');
+    currentChatCustomerId = customerId;
+    document.getElementById('chat-header').classList.add('on');
+    document.getElementById('chat-header-name').textContent = customerName || 'Khách';
+    document.getElementById('chat-header-phone').textContent = customerPhone || '';
+    document.getElementById('chat-call-btn').href = customerPhone ? ('tel:' + customerPhone) : '#';
+    document.getElementById('admin-composer').classList.add('on');
+    document.getElementById('chat-empty').style.display = 'none';
+
+    if (unsubChat) unsubChat();
+    const q = query(collection(db, "messages"), where("threadId", "==", customerId), orderBy("createdAt", "asc"));
+    unsubChat = onSnapshot(q, (snapshot) => {
+      const container = document.getElementById('admin-thread-scroll');
+      if (snapshot.empty) {
+        container.innerHTML = '<div class="empty-state">Chưa có tin nhắn nào với khách này.</div>';
+        return;
+      }
+      let html = '';
+      snapshot.forEach((docSnap) => {
+        const m = docSnap.data();
+        const rowClass = m.sender === 'them' ? 'them' : 'me';
+        html += '<div class="bubble-row ' + rowClass + '"><div><div class="bubble">' +
+          escapeHtml(m.text) + '</div><div class="bubble-time">' + formatTime(m.createdAt) + '</div></div></div>';
+      });
+      container.innerHTML = html;
+      container.scrollTop = container.scrollHeight;
+    });
+  };
+
+  window.sendAdminMessage = async function(){
+    if (!currentChatCustomerId) { alert('Bạn chưa chọn cuộc trò chuyện nào.'); return; }
+    const input = document.getElementById('admin-chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    try {
+      await addDoc(collection(db, "messages"), {
+        threadId: currentChatCustomerId,
+        sender: 'them',
+        senderName: 'Quản lý',
+        text: text,
+        createdAt: serverTimestamp()
+      });
+    } catch (err) { console.error(err); alert('Không gửi được tin nhắn.'); }
+  };
+
+  /* ---------- DRIVERS ---------- */
+  let driversCache = [];
+  function driverRatingText(driverId){
+    const rated = allBookings.filter((b) => b.driverId === driverId && b.rating);
+    if (rated.length === 0) return 'Chưa có đánh giá';
+    const avg = rated.reduce((sum, b) => sum + b.rating, 0) / rated.length;
+    return '⭐ ' + avg.toFixed(1) + ' (' + rated.length + ' đánh giá)';
+  }
+  function renderDriversList(){
+    const container = document.getElementById('drivers-list');
+    const emptyEl = document.getElementById('drivers-empty');
+    if (driversCache.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      renderBookings();
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    driversCache.forEach((d) => {
+      const isReady = d.status !== 'busy';
+      const avatarStyle = d.photoBase64 ? ' style="background-image:url(' + d.photoBase64 + ');background-size:cover;background-position:center;"' : '';
+      html += '<div class="driver-card" style="flex-direction:column; align-items:stretch;">' +
+        '<div style="display:flex; align-items:center; gap:12px;">' +
+        '<div class="driver-avatar"' + avatarStyle + '>' + (d.photoBase64 ? '' : escapeHtml((d.name||'?').charAt(0))) + '</div>' +
+        '<div class="driver-info"><div class="driver-name">' + escapeHtml(d.name||'') + '</div>' +
+        '<div class="driver-detail">' + escapeHtml(d.car||'') + (d.phone ? ' · ' + escapeHtml(d.phone) : '') + '</div>' +
+        '<div class="driver-detail" style="color:var(--accent-amber);">' + driverRatingText(d.id) + '</div></div>' +
+        '<button class="btn-tiny ' + (isReady ? 'ghost' : '') + '" onclick="toggleDriverStatus(\'' + d.id + '\', ' + (isReady ? "'busy'" : "'ready'") + ')">' +
+        (isReady ? 'Sẵn sàng' : 'Đang chạy') + '</button></div>' +
+        '<div class="card-actions" style="margin-top:10px;">' +
+        '<button class="btn-tiny ghost" onclick="editDriverFromAdmin(\'' + d.id + '\', \'' + escapeHtml(d.name||'').replace(/'/g,"") + '\', \'' + escapeHtml(d.car||'').replace(/'/g,"") + '\', \'' + escapeHtml(d.phone||'').replace(/'/g,"") + '\')">✎ Sửa</button>' +
+        '<button class="btn-tiny red" onclick="deleteDriverFromAdmin(\'' + d.id + '\', \'' + escapeHtml(d.name||'').replace(/'/g,"") + '\')">🗑 Xóa</button>' +
+        '</div></div>';
+    });
+    container.innerHTML = html;
+    renderBookings();
+  }
+
+  function listenForDrivers(){
+    const q = query(collection(db, "drivers"), orderBy("createdAt", "desc"));
+    onSnapshot(q, (snapshot) => {
+      driversCache = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      renderDriversList();
+    });
+  }
+
+  window.toggleDriverStatus = async function(driverId, newStatus){
+    try { await updateDoc(doc(db, "drivers", driverId), { status: newStatus }); }
+    catch (err) { console.error(err); alert('Có lỗi khi cập nhật trạng thái tài xế.'); }
+  };
+
+  window.addDriverFromAdmin = async function(){
+    const name = prompt('Tên tài xế:');
+    if (!name) return;
+    const car = prompt('Loại xe + biển số (VD: Innova · 51H-889.12):');
+    if (!car) return;
+    const phone = prompt('Số điện thoại liên hệ:') || '';
+    try {
+      await addDoc(collection(db, "drivers"), {
+        name: name, car: car, phone: phone, status: 'ready', createdAt: serverTimestamp()
+      });
+      alert('Đã thêm tài xế!');
+    } catch (err) { console.error(err); alert('Có lỗi khi thêm tài xế.'); }
+  };
+
+  window.editDriverFromAdmin = async function(driverId, currentName, currentCar, currentPhone){
+    const name = prompt('Tên tài xế:', currentName);
+    if (!name) return;
+    const car = prompt('Loại xe + biển số:', currentCar);
+    if (!car) return;
+    const phone = prompt('Số điện thoại:', currentPhone) || '';
+    try {
+      await updateDoc(doc(db, "drivers", driverId), { name: name, car: car, phone: phone });
+      alert('Đã cập nhật thông tin tài xế!');
+    } catch (err) { console.error(err); alert('Có lỗi khi sửa thông tin tài xế.'); }
+  };
+
+  window.deleteDriverFromAdmin = async function(driverId, name){
+    if (!confirm('Xóa tài xế "' + name + '" khỏi hệ thống? Không thể hoàn tác.')) return;
+    try {
+      await deleteDoc(doc(db, "drivers", driverId));
+    } catch (err) { console.error(err); alert('Có lỗi khi xóa tài xế.'); }
+  };
+
+  /* ---------- SETTINGS ---------- */
+  const ROUTE_DEFS = [
+    ['Ayun Pa', 'Sân bay Pleiku'],
+    ['Ayun Pa', 'Pleiku'],
+    ['Phú Thiện', 'Pleiku'],
+    ['Ayun Pa', 'Krông Pa']
+  ];
+  function routeKeyFor(a, b){ return (a + '_' + b).replace(/\s+/g, ''); }
+  let routePricesCache = {};
+
+  function renderRoutePriceRows(){
+    const container = document.getElementById('route-price-rows');
+    if (!container) return;
+    let html = '';
+    ROUTE_DEFS.forEach(([a, b]) => {
+      const key = routeKeyFor(a, b);
+      const current = (routePricesCache[key] && routePricesCache[key].price) || '';
+      html += '<div class="card-actions" style="margin-bottom:10px;">' +
+        '<span style="min-width:150px;font-size:12.5px;color:var(--text-muted);">' + a + ' ⇄ ' + b + '</span>' +
+        '<input type="text" id="rp-' + key + '" placeholder="VD: 120000" value="' + escapeHtml(current) + '">' +
+        '<button class="btn-tiny" onclick="saveRoutePrice(\'' + key + '\')">Lưu</button></div>';
+    });
+    container.innerHTML = html;
+  }
+
+  onSnapshot(collection(db, "routePrices"), (snap) => {
+    routePricesCache = {};
+    snap.forEach((d) => { routePricesCache[d.id] = d.data(); });
+    renderRoutePriceRows();
+  });
+
+  window.saveRoutePrice = async function(key){
+    const input = document.getElementById('rp-' + key);
+    const price = input.value.trim();
+    try {
+      await setDoc(doc(db, "routePrices", key), { price: price, updatedAt: serverTimestamp() }, { merge: true });
+      alert('Đã lưu giá tuyến!');
+    } catch (err) { console.error(err); alert('Có lỗi khi lưu giá tuyến.'); }
+  };
+
+  onSnapshot(doc(db, "settings", "general"), (snap) => {
+    const data = snap.data() || {};
+    const phoneInput = document.getElementById('settings-phone-input');
+    const rateInput = document.getElementById('settings-rate-input');
+    if (phoneInput && document.activeElement !== phoneInput) phoneInput.value = data.adminPhone || '';
+    if (rateInput && document.activeElement !== rateInput) rateInput.value = data.ratePerKm || '';
+  });
+
+  window.saveGeneralSettings = async function(){
+    const phone = document.getElementById('settings-phone-input').value.trim();
+    const rate = document.getElementById('settings-rate-input').value.trim();
+    try {
+      await setDoc(doc(db, "settings", "general"), {
+        adminPhone: phone,
+        ratePerKm: rate ? parseInt(rate) : 0,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      alert('Đã lưu cài đặt!');
+    } catch (err) { console.error(err); alert('Có lỗi khi lưu cài đặt.'); }
+  };
+
+  /* ---------- CUSTOMERS ---------- */
+  let customersCache = [];
+  let lastMessageByCustomer = {};
+  let messageListenersSetup = new Set();
+
+  function renderCustomers(){
+    const container = document.getElementById('customers-list');
+    const emptyEl = document.getElementById('customers-empty');
+    if (customersCache.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    const sorted = [...customersCache].sort((a, b) => {
+      const at = (lastMessageByCustomer[a.id] && lastMessageByCustomer[a.id].createdAt && lastMessageByCustomer[a.id].createdAt.toMillis) ? lastMessageByCustomer[a.id].createdAt.toMillis() : 0;
+      const bt = (lastMessageByCustomer[b.id] && lastMessageByCustomer[b.id].createdAt && lastMessageByCustomer[b.id].createdAt.toMillis) ? lastMessageByCustomer[b.id].createdAt.toMillis() : 0;
+      return bt - at;
+    });
+    let html = '';
+    sorted.forEach((c) => {
+      const lm = lastMessageByCustomer[c.id];
+      const preview = lm ? escapeHtml(lm.text) : 'Chưa có tin nhắn';
+      const unread = lm && lm.sender === 'me';
+      const safeName = escapeHtml(c.name || 'Khách').replace(/'/g, "");
+      const safePhone = escapeHtml(c.phone || '');
+      html += '<div class="card" style="cursor:pointer;" onclick="openChatFor(\'' + c.id + '\', \'' + safeName + '\', \'' + safePhone + '\')">' +
+        '<div class="card-top"><div><div class="card-name">' + escapeHtml(c.name || 'Khách') +
+        (unread ? '<span class="unread-dot"></span>' : '') + '</div>' +
+        '<div class="card-time">' + escapeHtml(c.phone || '') + '</div></div></div>' +
+        '<div class="card-route" style="margin-bottom:0;">' + preview + '</div></div>';
+    });
+    container.innerHTML = html;
+  }
+
+  function listenForCustomers(){
+    const q = query(collection(db, "customers"), orderBy("createdAt", "desc"));
+    onSnapshot(q, (snapshot) => {
+      customersCache = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      customersCache.forEach((c) => {
+        if (!messageListenersSetup.has(c.id)) {
+          messageListenersSetup.add(c.id);
+          const mq = query(collection(db, "messages"), where("threadId", "==", c.id), orderBy("createdAt", "desc"), limit(1));
+          onSnapshot(mq, (msnap) => {
+            if (!msnap.empty) lastMessageByCustomer[c.id] = msnap.docs[0].data();
+            renderCustomers();
+          });
+        }
+      });
+      renderCustomers();
+    });
+  }
+
+  listenForAllBookings();
+  listenForDrivers();
+  listenForCustomers();
+</script>
+</body>
+</html>
