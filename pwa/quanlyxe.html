@@ -236,6 +236,24 @@
       <input type="text" id="edit-driver-name" placeholder="Tên tài xế" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;">
       <input type="text" id="edit-driver-car" placeholder="Loại xe + biển số" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;">
       <input type="text" id="edit-driver-phone" placeholder="Số điện thoại" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;">
+      <select id="edit-driver-bank" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;font-family:inherit;">
+        <option value="">-- Ngân hàng --</option>
+        <option value="970436">Vietcombank</option>
+        <option value="970407">Techcombank</option>
+        <option value="970422">MB Bank</option>
+        <option value="970416">ACB</option>
+        <option value="970432">VPBank</option>
+        <option value="970418">BIDV</option>
+        <option value="970405">Agribank</option>
+        <option value="970403">Sacombank</option>
+        <option value="970423">TPBank</option>
+        <option value="970415">VietinBank</option>
+        <option value="970441">VIB</option>
+        <option value="970443">SHB</option>
+        <option value="970437">HDBank</option>
+        <option value="970431">Eximbank</option>
+      </select>
+      <input type="text" id="edit-driver-bank-account" placeholder="Số tài khoản ngân hàng" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;">
     </div>
     <div class="card-actions" style="margin-top:14px;">
       <button class="btn-tiny ghost" onclick="closeEditDriverModal()">Hủy</button>
@@ -602,6 +620,8 @@
     document.getElementById('edit-driver-car').value = currentCar || '';
     document.getElementById('edit-driver-phone').value = currentPhone || '';
     const driver = driversCache.find((d) => d.id === driverId);
+    document.getElementById('edit-driver-bank').value = (driver && driver.bankBin) || '';
+    document.getElementById('edit-driver-bank-account').value = (driver && driver.bankAccount) || '';
     const avatarEl = document.getElementById('edit-driver-avatar');
     if (driver && driver.photoBase64) {
       avatarEl.style.backgroundImage = 'url(' + driver.photoBase64 + ')';
@@ -659,7 +679,9 @@
     const car = document.getElementById('edit-driver-car').value.trim();
     const phone = document.getElementById('edit-driver-phone').value.trim();
     if (!name || !car) { alert('Bạn nhập đủ tên và loại xe nhé.'); return; }
-    const updateData = { name: name, car: car, phone: phone };
+    const bankBin = document.getElementById('edit-driver-bank').value;
+    const bankAccount = document.getElementById('edit-driver-bank-account').value.trim();
+    const updateData = { name: name, car: car, phone: phone, bankBin: bankBin, bankAccount: bankAccount };
     if (pendingEditDriverPhoto) updateData.photoBase64 = pendingEditDriverPhoto;
     try {
       await updateDoc(doc(db, "drivers", editingDriverId), updateData);

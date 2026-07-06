@@ -694,6 +694,12 @@
             </div>
           </div>
 
+          <div class="card" id="detail-bank-qr-row" style="display:none; margin-top:12px; text-align:center;">
+            <div class="card-name" style="font-size:13px; margin-bottom:10px;">💳 Chuyển khoản cho tài xế</div>
+            <img id="detail-bank-qr-img" style="width:180px; height:180px; border-radius:12px; background:#fff; padding:8px;">
+            <div class="hint-line" id="detail-bank-account-text" style="margin-top:8px;"></div>
+          </div>
+
           <div class="quick-chip-row" id="track-driver-row" style="display:none; margin-top:10px;">
             <div class="quick-chip" onclick="toggleDriverMap()" id="track-driver-btn">🚕 Xem vị trí tài xế trực tiếp</div>
           </div>
@@ -1129,6 +1135,18 @@
           document.getElementById('detail-driver-rating').textContent = info.ratingCount > 0
             ? ('⭐ ' + info.ratingAvg.toFixed(1) + ' (' + info.ratingCount + ' đánh giá)')
             : 'Chưa có đánh giá';
+
+          const qrRow = document.getElementById('detail-bank-qr-row');
+          if (info.bankBin && info.bankAccount) {
+            qrRow.style.display = 'block';
+            const rawPrice = (el.dataset.price || '').replace(/[^\d]/g, '');
+            let qrUrl = 'https://img.vietqr.io/image/' + info.bankBin + '-' + info.bankAccount + '-compact2.png?addInfo=' + encodeURIComponent('Xe Nha ' + el.dataset.drivername);
+            if (rawPrice) qrUrl += '&amount=' + rawPrice;
+            document.getElementById('detail-bank-qr-img').src = qrUrl;
+            document.getElementById('detail-bank-account-text').textContent = 'STK: ' + info.bankAccount;
+          } else {
+            qrRow.style.display = 'none';
+          }
         });
       }
 
@@ -1796,10 +1814,14 @@
   };
 
   window.loadDriverExtras = async function (driverId) {
-    const result = { photoBase64: '', ratingAvg: 0, ratingCount: 0 };
+    const result = { photoBase64: '', ratingAvg: 0, ratingCount: 0, bankBin: '', bankAccount: '' };
     try {
       const driverSnap = await getDoc(doc(db, "drivers", driverId));
-      if (driverSnap.exists()) result.photoBase64 = driverSnap.data().photoBase64 || '';
+      if (driverSnap.exists()) {
+        result.photoBase64 = driverSnap.data().photoBase64 || '';
+        result.bankBin = driverSnap.data().bankBin || '';
+        result.bankAccount = driverSnap.data().bankAccount || '';
+      }
     } catch (err) { console.error('Lỗi tải ảnh tài xế:', err); }
     try {
       const q = query(collection(db, "bookings"), where("driverId", "==", driverId));
