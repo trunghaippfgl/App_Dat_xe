@@ -522,6 +522,7 @@
     if (unsubChat) unsubChat();
     const q = query(collection(db, "messages"), where("threadId", "==", customerId), orderBy("createdAt", "asc"));
     unsubChat = onSnapshot(q, (snapshot) => {
+      if (customerId !== currentChatCustomerId) return;
       const container = document.getElementById('admin-thread-scroll');
       if (snapshot.empty) {
         container.innerHTML = '<div class="empty-state">Chưa có tin nhắn nào với khách này.</div>';
