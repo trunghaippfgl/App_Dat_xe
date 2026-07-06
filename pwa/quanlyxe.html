@@ -90,6 +90,8 @@
 
   /* chat tab */
   .lookup-row{ display:flex; gap:8px; padding:14px 16px; border-bottom:1px solid var(--border-steel); flex-shrink:0; }
+  #chat-conversation-list-wrap{ flex:1; overflow-y:auto; padding:0 16px 16px; }
+  #chat-conversation-list-wrap.hidden{ display:none; }
   .lookup-row input{ flex:1; background:var(--surface-800); border:1px solid var(--border-steel); border-radius:12px;
     padding:11px 14px; color:var(--text-fog); font-size:13.5px; font-family:inherit; outline:none; }
   .chat-header{ padding:12px 16px; border-bottom:1px solid var(--border-steel); flex-shrink:0; display:none; }
@@ -142,7 +144,7 @@
   <div class="tabs">
     <div class="tab-btn active" id="tab-bookings" onclick="switchTab('bookings')">Đơn hàng</div>
     <div class="tab-btn" id="tab-customers" onclick="switchTab('customers')">Khách hàng</div>
-    <div class="tab-btn" id="tab-chat" onclick="switchTab('chat')">Trò chuyện</div>
+    <div class="tab-btn" id="tab-chat" onclick="switchTab('chat'); if(window.renderChatConversationList) renderChatConversationList();">Trò chuyện</div>
     <div class="tab-btn" id="tab-drivers" onclick="switchTab('drivers')">Tài xế</div>
     <div class="tab-btn" id="tab-settings" onclick="switchTab('settings')">Cài đặt</div>
   </div>
@@ -172,11 +174,16 @@
 
   <!-- CHAT PANEL -->
   <div class="panel" id="panel-chat">
-    <div class="lookup-row">
-      <input type="text" id="chat-phone-input" placeholder="Nhập SĐT khách để tìm cuộc trò chuyện">
-      <button class="btn-tiny" onclick="findChatByPhone()">Tìm</button>
+    <div class="scroll" id="chat-conversation-list-wrap">
+      <div class="lookup-row">
+        <input type="text" id="chat-phone-input" placeholder="Nhập SĐT khách để tìm cuộc trò chuyện">
+        <button class="btn-tiny" onclick="findChatByPhone()">Tìm</button>
+      </div>
+      <div id="chat-conversation-list"></div>
+      <div class="empty-state" id="chat-conversation-empty" style="display:none;">Chưa có cuộc trò chuyện nào.</div>
     </div>
     <div class="chat-header" id="chat-header">
+      <button class="btn-tiny ghost" onclick="backToConversationList()">← Danh sách</button>
       <div>
         <div class="name" id="chat-header-name"></div>
         <div class="phone" id="chat-header-phone"></div>
@@ -500,6 +507,7 @@
 
   window.openChatFor = function(customerId, customerName, customerPhone){
     switchTab('chat');
+    document.getElementById('chat-conversation-list-wrap').classList.add('hidden');
     currentChatCustomerId = customerId;
     document.getElementById('chat-header').classList.add('on');
     document.getElementById('chat-header-name').textContent = customerName || 'Khách';
@@ -527,6 +535,47 @@
       container.scrollTop = container.scrollHeight;
     });
   };
+
+  window.backToConversationList = function(){
+    if (unsubChat) { unsubChat(); unsubChat = null; }
+    currentChatCustomerId = null;
+    document.getElementById('chat-header').classList.remove('on');
+    document.getElementById('admin-composer').classList.remove('on');
+    document.getElementById('chat-conversation-list-wrap').classList.remove('hidden');
+    renderChatConversationList();
+  };
+
+  window.renderChatConversationList = renderChatConversationList;
+  function renderChatConversationList(){
+    const container = document.getElementById('chat-conversation-list');
+    const emptyEl = document.getElementById('chat-conversation-empty');
+    if (!container) return;
+    if (customersCache.length === 0) {
+      container.innerHTML = '';
+      if (emptyEl) emptyEl.style.display = 'block';
+      return;
+    }
+    if (emptyEl) emptyEl.style.display = 'none';
+    const sorted = [...customersCache].sort((a, b) => {
+      const at = (lastMessageByCustomer[a.id] && lastMessageByCustomer[a.id].createdAt && lastMessageByCustomer[a.id].createdAt.toMillis) ? lastMessageByCustomer[a.id].createdAt.toMillis() : 0;
+      const bt = (lastMessageByCustomer[b.id] && lastMessageByCustomer[b.id].createdAt && lastMessageByCustomer[b.id].createdAt.toMillis) ? lastMessageByCustomer[b.id].createdAt.toMillis() : 0;
+      return bt - at;
+    });
+    let html = '';
+    sorted.forEach((c) => {
+      const lm = lastMessageByCustomer[c.id];
+      const preview = lm ? escapeHtml(lm.text) : 'Chưa có tin nhắn';
+      const unread = lm && lm.sender === 'me';
+      const safeName = escapeHtml(c.name || 'Khách').replace(/'/g, "");
+      const safePhone = escapeHtml(c.phone || '');
+      html += '<div class="card" style="cursor:pointer;margin-bottom:10px;" onclick="openChatFor(\'' + c.id + '\', \'' + safeName + '\', \'' + safePhone + '\')">' +
+        '<div class="card-top"><div><div class="card-name">' + escapeHtml(c.name || 'Khách') +
+        (unread ? '<span class="unread-dot"></span>' : '') + '</div>' +
+        '<div class="card-time">' + escapeHtml(c.phone || '') + '</div></div></div>' +
+        '<div class="card-route" style="margin-bottom:0;">' + preview + '</div></div>';
+    });
+    container.innerHTML = html;
+  }
 
   window.sendAdminMessage = async function(){
     if (!currentChatCustomerId) { alert('Bạn chưa chọn cuộc trò chuyện nào.'); return; }
@@ -876,11 +925,11 @@
           const mq = query(collection(db, "messages"), where("threadId", "==", c.id), orderBy("createdAt", "desc"), limit(1));
           onSnapshot(mq, (msnap) => {
             if (!msnap.empty) lastMessageByCustomer[c.id] = msnap.docs[0].data();
-            renderCustomers();
+            renderCustomers(); renderChatConversationList();
           });
         }
       });
-      renderCustomers();
+      renderCustomers(); renderChatConversationList();
     });
   }
 
