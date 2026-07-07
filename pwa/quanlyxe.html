@@ -517,7 +517,8 @@
     document.getElementById('chat-header-phone').textContent = customerPhone || '';
     document.getElementById('chat-call-btn').href = customerPhone ? ('tel:' + customerPhone) : '#';
     document.getElementById('admin-composer').classList.add('on');
-    document.getElementById('chat-empty').style.display = 'none';
+    const chatEmptyEl = document.getElementById('chat-empty');
+    if (chatEmptyEl) chatEmptyEl.style.display = 'none';
 
     if (unsubChat) unsubChat();
     const q = query(collection(db, "messages"), where("threadId", "==", customerId), orderBy("createdAt", "asc"));
