@@ -2011,11 +2011,15 @@
     let html = '';
     items.forEach((item) => {
       const qty = cartQtyFor(item.id);
+      const thumb = item.photoBase64
+        ? '<div style="width:56px;height:56px;border-radius:10px;background-image:url(' + item.photoBase64 + ');background-size:cover;background-position:center;flex-shrink:0;margin-right:10px;"></div>'
+        : '<div style="width:56px;height:56px;border-radius:10px;background:var(--surface-700);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;margin-right:10px;">🍽️</div>';
       html += '<div class="card" style="margin-bottom:10px;">' +
         '<div class="item-row" style="display:flex;justify-content:space-between;align-items:center;">' +
-        '<div><div class="card-name">' + escapeHtml(item.name) + '</div>' +
+        '<div style="display:flex;align-items:center;flex:1;min-width:0;">' + thumb +
+        '<div style="min-width:0;"><div class="card-name">' + escapeHtml(item.name) + '</div>' +
         '<div class="card-sub" style="font-size:12px;color:var(--text-muted);">' + escapeHtml(item.description || '') + '</div>' +
-        '<div style="font-weight:800;color:var(--accent-amber);margin-top:4px;">' + formatVnd(item.price) + '</div></div>' +
+        '<div style="font-weight:800;color:var(--accent-amber);margin-top:4px;">' + formatVnd(item.price) + '</div></div></div>' +
         '<div style="display:flex;align-items:center;gap:10px;">' +
         (qty > 0 ? ('<button class="locate-btn" onclick="changeCartQty(\'' + item.id + '\', -1)">−</button><span style="font-weight:700;min-width:16px;text-align:center;">' + qty + '</span>') : '') +
         '<button class="locate-btn" onclick="changeCartQty(\'' + item.id + '\', 1)">+</button>' +
