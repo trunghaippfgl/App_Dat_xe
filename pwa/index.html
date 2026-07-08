@@ -596,6 +596,7 @@
           <div class="quick-chip-row" style="margin-top:0; margin-bottom:14px;">
             <div class="quick-chip on" id="service-type-passenger" onclick="setServiceType('passenger')">🧍 Chở khách</div>
             <div class="quick-chip" id="service-type-package" onclick="setServiceType('package')">📦 Gửi hàng</div>
+            <div class="quick-chip" onclick="openFoodStores()">🍜 Đặt đồ ăn</div>
           </div>
 
           <div class="book-form">
@@ -800,6 +801,7 @@
 
           <div class="menu-list">
             <div class="menu-item" onclick="openSubScreen('screen-vouchers')"><span>🎁 Voucher khuyến mãi <span class="menu-badge" id="voucher-menu-badge" style="display:none;"></span></span><span class="arrow">›</span></div>
+            <div class="menu-item" onclick="openFoodOrdersScreen()"><span>🍜 Đơn đồ ăn của tôi</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openSubScreen('screen-favorite-drivers')"><span>Tài xế yêu thích</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openSubScreen('screen-history')"><span>Lịch sử chuyến đi</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openSubScreen('screen-payment-method')"><span>Phương thức thanh toán</span><span class="arrow">›</span></div>
@@ -818,6 +820,70 @@
         <div class="scroll" style="padding-top:14px;">
           <div id="vouchers-list"></div>
           <div class="empty-state" id="vouchers-empty" style="display:none;">Bạn chưa có voucher nào. Đặt xe thường xuyên để nhận ưu đãi từ Xe Nhà nhé!</div>
+        </div>
+      </div>
+
+      <!-- SCREEN: FOOD - STORE LIST -->
+      <div class="screen" id="screen-food-stores">
+        <div class="thread-header">
+          <div class="back-btn" onclick="closeThread()">←</div>
+          <div class="thread-title">Đặt đồ ăn</div>
+        </div>
+        <div class="scroll" style="padding-top:14px;">
+          <div id="food-stores-list"></div>
+          <div class="empty-state" id="food-stores-empty" style="display:none;">Chưa có cửa hàng nào trên Xe Nhà. Quay lại sau nhé!</div>
+        </div>
+      </div>
+
+      <!-- SCREEN: FOOD - MENU -->
+      <div class="screen" id="screen-food-menu">
+        <div class="thread-header">
+          <div class="back-btn" onclick="openFoodStores()">←</div>
+          <div class="thread-title" id="food-menu-store-name">Thực đơn</div>
+        </div>
+        <div class="scroll" style="padding-top:14px; padding-bottom:80px;">
+          <div id="food-menu-list"></div>
+          <div class="empty-state" id="food-menu-empty" style="display:none;">Cửa hàng chưa đăng món nào.</div>
+        </div>
+        <div id="food-cart-bar" style="display:none; position:fixed; bottom:16px; left:16px; right:16px; max-width:388px; margin:0 auto; background:var(--accent-amber); color:#1A1200; border-radius:14px; padding:14px 18px; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4);" onclick="openFoodCart()">
+          <span id="food-cart-bar-text" style="font-weight:800;">🛒 0 món</span>
+          <span id="food-cart-bar-total" style="font-weight:800;">0 đ</span>
+        </div>
+      </div>
+
+      <!-- SCREEN: FOOD - CART -->
+      <div class="screen" id="screen-food-cart">
+        <div class="thread-header">
+          <div class="back-btn" onclick="openFoodMenuFromCart()">←</div>
+          <div class="thread-title">Giỏ hàng</div>
+        </div>
+        <div class="scroll" style="padding-top:14px;">
+          <div id="food-cart-list"></div>
+          <div class="empty-state" id="food-cart-empty" style="display:none;">Giỏ hàng đang trống.</div>
+          <div class="book-form" style="margin-top:16px;">
+            <div class="field">
+              <span class="field-label">Địa chỉ giao hàng *</span>
+              <div class="field-input"><input type="text" id="food-delivery-address" class="native-input" placeholder="Số nhà, đường, phường..."></div>
+            </div>
+            <div class="hint-line" style="text-align:left; margin-bottom:10px;">
+              Tạm tính: <b id="food-cart-subtotal">0 đ</b><br>
+              Phí ship: <b id="food-cart-delivery-fee">0 đ</b><br>
+              <span style="font-size:15px;">Tổng cộng: <b id="food-cart-total" style="color:var(--route-green);">0 đ</b></span>
+            </div>
+            <button class="btn-full" onclick="submitFoodOrder()">Đặt hàng</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCREEN: FOOD - MY ORDERS -->
+      <div class="screen" id="screen-food-orders">
+        <div class="thread-header">
+          <div class="back-btn" onclick="closeThread()">←</div>
+          <div class="thread-title">Đơn đồ ăn của tôi</div>
+        </div>
+        <div class="scroll" style="padding-top:14px;">
+          <div id="food-orders-list"></div>
+          <div class="empty-state" id="food-orders-empty" style="display:none;">Bạn chưa đặt đơn đồ ăn nào.</div>
         </div>
       </div>
 
@@ -1869,6 +1935,234 @@
       alert('Có lỗi khi tính khoảng cách, thử lại nhé.');
     }
   }
+  /* ---------- ĐẶT ĐỒ ĂN ---------- */
+  let foodCart = [];
+  let foodCartStoreId = null;
+  let foodCartStoreName = '';
+  let foodCartStoreAddress = '';
+  let foodMenuCache = [];
+
+  async function openFoodStores(){
+    openSubScreen('screen-food-stores');
+    const ready = await waitForFirebaseReady();
+    if (ready && window.getApprovedStores) {
+      try {
+        const stores = await window.getApprovedStores();
+        renderFoodStoresList(stores);
+      } catch (err) { console.error(err); }
+    }
+  }
+
+  function renderFoodStoresList(stores){
+    const container = document.getElementById('food-stores-list');
+    const emptyEl = document.getElementById('food-stores-empty');
+    if (!stores || stores.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    stores.forEach((s) => {
+      html += '<div class="driver-list-card" style="cursor:pointer;" onclick="openFoodMenuFromStore(\'' + s.id + '\', \'' + escapeHtml((s.name||'').replace(/'/g,'')) + '\', \'' + escapeHtml((s.address||'').replace(/'/g,'')) + '\')">' +
+        '<div class="avatar" style="width:46px;height:46px;font-size:20px;">🏪</div>' +
+        '<div class="driver-list-info"><div class="driver-list-name">' + escapeHtml(s.name || '') + '</div>' +
+        '<div class="driver-list-car">' + escapeHtml(s.category || '') + ' · ' + escapeHtml(s.address || '') + '</div></div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+
+  async function openFoodMenuFromStore(storeId, storeName, storeAddress){
+    if (foodCartStoreId && foodCartStoreId !== storeId && foodCart.length > 0) {
+      if (!confirm('Giỏ hàng hiện tại đang có món từ quán khác. Đặt món từ quán mới sẽ xóa giỏ hàng cũ, tiếp tục?')) return;
+      foodCart = [];
+    }
+    foodCartStoreId = storeId;
+    foodCartStoreName = storeName;
+    foodCartStoreAddress = storeAddress;
+    document.getElementById('food-menu-store-name').textContent = storeName;
+    openSubScreen('screen-food-menu');
+    const ready = await waitForFirebaseReady();
+    if (ready && window.getStoreMenu) {
+      try {
+        const items = await window.getStoreMenu(storeId);
+        foodMenuCache = items;
+        renderFoodMenuList(items);
+      } catch (err) { console.error(err); }
+    }
+    updateFoodCartBar();
+  }
+
+  function cartQtyFor(itemId){
+    const line = foodCart.find(l => l.itemId === itemId);
+    return line ? line.qty : 0;
+  }
+
+  function renderFoodMenuList(items){
+    const container = document.getElementById('food-menu-list');
+    const emptyEl = document.getElementById('food-menu-empty');
+    if (!items || items.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    items.forEach((item) => {
+      const qty = cartQtyFor(item.id);
+      html += '<div class="card" style="margin-bottom:10px;">' +
+        '<div class="item-row" style="display:flex;justify-content:space-between;align-items:center;">' +
+        '<div><div class="card-name">' + escapeHtml(item.name) + '</div>' +
+        '<div class="card-sub" style="font-size:12px;color:var(--text-muted);">' + escapeHtml(item.description || '') + '</div>' +
+        '<div style="font-weight:800;color:var(--accent-amber);margin-top:4px;">' + formatVnd(item.price) + '</div></div>' +
+        '<div style="display:flex;align-items:center;gap:10px;">' +
+        (qty > 0 ? ('<button class="locate-btn" onclick="changeCartQty(\'' + item.id + '\', -1)">−</button><span style="font-weight:700;min-width:16px;text-align:center;">' + qty + '</span>') : '') +
+        '<button class="locate-btn" onclick="changeCartQty(\'' + item.id + '\', 1)">+</button>' +
+        '</div></div></div>';
+    });
+    container.innerHTML = html;
+  }
+
+  function changeCartQty(itemId, delta){
+    const item = foodMenuCache.find(m => m.id === itemId);
+    if (!item) return;
+    let line = foodCart.find(l => l.itemId === itemId);
+    if (!line) {
+      if (delta > 0) foodCart.push({ itemId: itemId, name: item.name, price: item.price, qty: 1 });
+    } else {
+      line.qty += delta;
+      if (line.qty <= 0) foodCart = foodCart.filter(l => l.itemId !== itemId);
+    }
+    renderFoodMenuList(foodMenuCache);
+    updateFoodCartBar();
+  }
+
+  function foodCartSubtotal(){
+    return foodCart.reduce((s, l) => s + (l.price * l.qty), 0);
+  }
+  function foodCartCount(){
+    return foodCart.reduce((s, l) => s + l.qty, 0);
+  }
+
+  function updateFoodCartBar(){
+    const bar = document.getElementById('food-cart-bar');
+    if (!bar) return;
+    const count = foodCartCount();
+    if (count === 0) { bar.style.display = 'none'; return; }
+    bar.style.display = 'flex';
+    document.getElementById('food-cart-bar-text').textContent = '🛒 ' + count + ' món';
+    document.getElementById('food-cart-bar-total').textContent = formatVnd(foodCartSubtotal());
+  }
+
+  function openFoodCart(){
+    openSubScreen('screen-food-cart');
+    const savedAddress = localStorage.getItem('xn_last_pickup') || '';
+    const addrInput = document.getElementById('food-delivery-address');
+    if (addrInput && !addrInput.value) addrInput.value = savedAddress;
+    renderFoodCartList();
+  }
+
+  function openFoodMenuFromCart(){
+    openSubScreen('screen-food-menu');
+    renderFoodMenuList(foodMenuCache);
+  }
+
+  async function renderFoodCartList(){
+    const container = document.getElementById('food-cart-list');
+    const emptyEl = document.getElementById('food-cart-empty');
+    if (foodCart.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+    } else {
+      emptyEl.style.display = 'none';
+      let html = '';
+      foodCart.forEach((l) => {
+        html += '<div class="card" style="margin-bottom:8px;">' +
+          '<div class="item-row" style="display:flex;justify-content:space-between;align-items:center;">' +
+          '<div><div class="card-name">' + escapeHtml(l.name) + '</div>' +
+          '<div style="color:var(--text-muted);font-size:12.5px;">' + formatVnd(l.price) + ' x ' + l.qty + '</div></div>' +
+          '<div style="display:flex;align-items:center;gap:10px;">' +
+          '<button class="locate-btn" onclick="changeCartQty(\'' + l.itemId + '\', -1); renderFoodCartList();">−</button>' +
+          '<span style="font-weight:700;min-width:16px;text-align:center;">' + l.qty + '</span>' +
+          '<button class="locate-btn" onclick="changeCartQty(\'' + l.itemId + '\', 1); renderFoodCartList();">+</button>' +
+          '</div></div></div>';
+      });
+      container.innerHTML = html;
+    }
+    const subtotal = foodCartSubtotal();
+    const rate = (window.getAppSettings && window.getAppSettings().foodDeliveryFee) || 0;
+    document.getElementById('food-cart-subtotal').textContent = formatVnd(subtotal);
+    document.getElementById('food-cart-delivery-fee').textContent = formatVnd(rate);
+    document.getElementById('food-cart-total').textContent = formatVnd(subtotal + rate);
+  }
+
+  async function submitFoodOrder(){
+    if (foodCart.length === 0) { alert('Giỏ hàng đang trống.'); return; }
+    const address = document.getElementById('food-delivery-address').value.trim();
+    if (!address) { alert('Bạn nhập địa chỉ giao hàng trước nhé.'); return; }
+    const customerId = localStorage.getItem('xn_customer_id');
+    const customerName = localStorage.getItem('xn_customer_name') || 'Khách';
+    const customerPhone = localStorage.getItem('xn_customer_phone') || '';
+    if (!customerId) { alert('Bạn cần hoàn tất đăng ký trước.'); return; }
+
+    const ready = await waitForFirebaseReady();
+    if (ready && window.createFoodOrder) {
+      try {
+        await window.createFoodOrder({
+          customerId, customerName, customerPhone,
+          storeId: foodCartStoreId, storeName: foodCartStoreName, storeAddress: foodCartStoreAddress,
+          items: foodCart.map(l => ({ name: l.name, price: l.price, qty: l.qty })),
+          subtotal: foodCartSubtotal(),
+          deliveryAddress: address
+        });
+        foodCart = [];
+        foodCartStoreId = null;
+        alert('Đặt hàng thành công! Cửa hàng sẽ xác nhận đơn của bạn sớm nhé.');
+        openFoodOrdersScreen();
+      } catch (err) { console.error(err); alert('Có lỗi khi đặt hàng, thử lại nhé.'); }
+    }
+  }
+
+  async function openFoodOrdersScreen(){
+    openSubScreen('screen-food-orders');
+    const customerId = localStorage.getItem('xn_customer_id');
+    if (!customerId) return;
+    const ready = await waitForFirebaseReady();
+    if (ready && window.listenForMyFoodOrders) window.listenForMyFoodOrders(customerId);
+  }
+
+  function foodOrderStatusLabel(status){
+    const map = { pending: 'Chờ quán xác nhận', preparing: 'Đang chuẩn bị', ready: 'Chờ tài xế', assigned: 'Tài xế đã nhận', delivering: 'Đang giao', delivered: 'Đã giao', cancelled: 'Đã hủy' };
+    return map[status] || status;
+  }
+
+  function renderMyFoodOrders(orders){
+    const container = document.getElementById('food-orders-list');
+    const emptyEl = document.getElementById('food-orders-empty');
+    if (!orders || orders.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    orders.forEach((o) => {
+      const itemsText = (o.items || []).map(it => it.qty + 'x ' + it.name).join(', ');
+      const total = (o.subtotal || 0) + (o.deliveryFee || 0);
+      html += '<div class="card" style="margin-bottom:10px;">' +
+        '<div class="item-row" style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+        '<div><div class="card-name">' + escapeHtml(o.storeName || '') + '</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(itemsText) + '</div></div>' +
+        '<div class="ticket-status confirmed" style="font-size:11px;">' + foodOrderStatusLabel(o.status) + '</div>' +
+        '</div>' +
+        '<div style="font-weight:700;margin-top:8px;">Tổng: ' + formatVnd(total) + '</div>' +
+        (o.driverName ? '<div style="font-size:12px;color:var(--blue);margin-top:4px;">🛵 Tài xế: ' + escapeHtml(o.driverName) + '</div>' : '') +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+
   let currentServiceType = 'passenger';
   function setServiceType(type){
     currentServiceType = type;
@@ -2272,6 +2566,60 @@
     const doc0 = snap.docs[0];
     const data = doc0.data();
     return { valid: true, description: data.description || '', voucherId: doc0.id, discountType: data.discountType || '', discountValue: data.discountValue || 0 };
+  };
+
+  /* ---------- ĐẶT ĐỒ ĂN ---------- */
+  window.getApprovedStores = async function(){
+    const q = query(collection(db, "stores"), where("status", "==", "approved"));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+
+  window.getStoreMenu = async function(storeId){
+    const q = query(collection(db, "menuItems"), where("storeId", "==", storeId));
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(i => i.available !== false);
+    items.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    return items;
+  };
+
+  window.createFoodOrder = async function(data){
+    const storeSnap = await getDoc(doc(db, "stores", data.storeId));
+    const storeData = storeSnap.exists() ? storeSnap.data() : {};
+    const commissionPercent = storeData.commissionPercent || 15;
+    const commissionAmount = Math.round((data.subtotal || 0) * (commissionPercent / 100));
+    const settingsSnap = await getDoc(doc(db, "settings", "general"));
+    const deliveryFee = (settingsSnap.exists() && settingsSnap.data().foodDeliveryFee) || 0;
+
+    await addDoc(collection(db, "foodOrders"), {
+      customerId: data.customerId,
+      customerName: data.customerName,
+      customerPhone: data.customerPhone,
+      storeId: data.storeId,
+      storeName: data.storeName,
+      storeAddress: data.storeAddress || storeData.address || '',
+      items: data.items,
+      subtotal: data.subtotal,
+      deliveryFee: deliveryFee,
+      commissionPercent: commissionPercent,
+      commissionAmount: commissionAmount,
+      deliveryAddress: data.deliveryAddress,
+      status: 'pending',
+      createdAt: serverTimestamp()
+    });
+  };
+
+  window.listenForMyFoodOrders = function(customerId){
+    const q = query(collection(db, "foodOrders"), where("customerId", "==", customerId));
+    onSnapshot(q, (snap) => {
+      const orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      orders.sort((a, b) => {
+        const at = (a.createdAt && a.createdAt.toMillis) ? a.createdAt.toMillis() : 0;
+        const bt = (b.createdAt && b.createdAt.toMillis) ? b.createdAt.toMillis() : 0;
+        return bt - at;
+      });
+      if (window.renderMyFoodOrders) window.renderMyFoodOrders(orders);
+    });
   };
 
   let appSettings = { adminPhone: '', ratePerKm: 0 };
