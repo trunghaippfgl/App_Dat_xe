@@ -1041,6 +1041,12 @@
     if (discountType === 'percent') return Math.round(originalAmount * (discountValue / 100));
     return Math.min(discountValue, originalAmount);
   }
+  function escapeHtml(str){
+    if (str === null || str === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
 
   /* ---------- Chuẩn hoá số điện thoại về 1 định dạng chung (VD: 0912345678) ---------- */
   function normalizePhone(phone){
@@ -1630,6 +1636,13 @@
       try { await window.toggleFavoriteDriver(customerId, driverId, add); }
       catch (err) { console.error('Không cập nhật được tài xế yêu thích:', err); }
     }
+  }
+
+  function updatePaymentMethodUI(method){
+    ['cash', 'transfer', 'ewallet'].forEach((m) => {
+      const el = document.getElementById('pay-' + m);
+      if (el) el.classList.toggle('selected', m === method);
+    });
   }
 
   async function selectPaymentMethod(method){
