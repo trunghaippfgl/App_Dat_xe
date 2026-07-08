@@ -280,6 +280,8 @@
   <div class="modal-box">
     <div class="modal-title" id="menu-modal-title">Thêm món mới</div>
     <input type="hidden" id="menu-item-id">
+    <div id="menu-item-photo-picker" onclick="document.getElementById('menu-item-photo-input').click()" style="width:100%;height:130px;border-radius:12px;background:var(--bg-asphalt-900);border:1px dashed var(--border-steel);display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer;margin-bottom:14px;background-size:cover;background-position:center;color:var(--text-dim);">📷 Thêm ảnh món</div>
+    <input type="file" id="menu-item-photo-input" accept="image/*" style="display:none;" onchange="handleMenuItemPhoto(this)">
     <div class="field">
       <span class="field-label">Tên món *</span>
       <input type="text" id="menu-item-name" class="native-input" placeholder="VD: Cà phê sữa đá">
@@ -451,6 +453,44 @@
     document.getElementById('panel-' + name).classList.add('active');
   }
 
+  function resizeImageFile(file, maxSize, quality){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width, h = img.height;
+          if (w > h) { if (w > maxSize) { h = Math.round(h * maxSize / w); w = maxSize; } }
+          else { if (h > maxSize) { w = Math.round(w * maxSize / h); h = maxSize; } }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  let pendingMenuItemPhotoBase64 = null;
+  async function handleMenuItemPhoto(inputEl){
+    const file = inputEl.files && inputEl.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageFile(file, 400, 0.7);
+      pendingMenuItemPhotoBase64 = dataUrl;
+      const picker = document.getElementById('menu-item-photo-picker');
+      picker.style.backgroundImage = 'url(' + dataUrl + ')';
+      picker.textContent = '';
+    } catch (err) {
+      console.error(err);
+      alert('Có lỗi khi xử lý ảnh, thử lại nhé.');
+    }
+  }
+
   /* ---------- MENU ITEMS ---------- */
   function openMenuItemModal(item){
     document.getElementById('menu-modal-title').textContent = item ? 'Sửa món' : 'Thêm món mới';
@@ -460,6 +500,15 @@
     document.getElementById('menu-item-desc').value = item ? (item.description || '') : '';
     document.getElementById('menu-item-available').checked = item ? (item.available !== false) : true;
     document.getElementById('menu-item-delete-btn').style.display = item ? 'inline-block' : 'none';
+    pendingMenuItemPhotoBase64 = null;
+    const picker = document.getElementById('menu-item-photo-picker');
+    if (item && item.photoBase64) {
+      picker.style.backgroundImage = 'url(' + item.photoBase64 + ')';
+      picker.textContent = '';
+    } else {
+      picker.style.backgroundImage = 'none';
+      picker.textContent = '📷 Thêm ảnh món';
+    }
     document.getElementById('menu-item-modal').classList.add('active');
   }
   function closeMenuItemModal(){
@@ -476,9 +525,11 @@
     if (!price) { alert('Bạn nhập giá món hợp lệ nhé.'); return; }
     try {
       if (id) {
-        await window.updateMenuItem(id, { name, price, description, available });
+        const fields = { name, price, description, available };
+        if (pendingMenuItemPhotoBase64) fields.photoBase64 = pendingMenuItemPhotoBase64;
+        await window.updateMenuItem(id, fields);
       } else {
-        await window.createMenuItem({ storeId: currentStoreId, name, price, description, available });
+        await window.createMenuItem({ storeId: currentStoreId, name, price, description, available, photoBase64: pendingMenuItemPhotoBase64 || '' });
       }
       closeMenuItemModal();
     } catch (err) { console.error(err); alert('Có lỗi khi lưu món.'); }
@@ -510,10 +561,14 @@
     emptyEl.style.display = 'none';
     let html = '';
     items.forEach((item) => {
+      const thumb = item.photoBase64
+        ? '<div style="width:52px;height:52px;border-radius:10px;background-image:url(' + item.photoBase64 + ');background-size:cover;background-position:center;flex-shrink:0;margin-right:10px;"></div>'
+        : '<div style="width:52px;height:52px;border-radius:10px;background:var(--surface-700);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;margin-right:10px;">🍽️</div>';
       html += '<div class="card">' +
         '<div class="item-row">' +
-        '<div><div class="card-name">' + escapeHtml(item.name) + (item.available === false ? ' <span style="color:var(--text-dim);font-weight:500;">(Tạm hết)</span>' : '') + '</div>' +
-        '<div class="card-sub">' + escapeHtml(item.description || '') + '</div></div>' +
+        '<div style="display:flex;align-items:center;flex:1;min-width:0;">' + thumb +
+        '<div style="min-width:0;"><div class="card-name">' + escapeHtml(item.name) + (item.available === false ? ' <span style="color:var(--text-dim);font-weight:500;">(Tạm hết)</span>' : '') + '</div>' +
+        '<div class="card-sub">' + escapeHtml(item.description || '') + '</div></div></div>' +
         '<div style="font-weight:800; color:var(--accent-amber); white-space:nowrap;">' + formatVnd(item.price) + '</div>' +
         '</div>' +
         '<div class="card-actions"><button class="btn-tiny ghost" onclick="editMenuItemById(\'' + item.id + '\')">✏️ Sửa</button></div>' +
@@ -708,6 +763,7 @@
       price: data.price,
       description: data.description || '',
       available: data.available !== false,
+      photoBase64: data.photoBase64 || '',
       createdAt: serverTimestamp()
     });
   };
