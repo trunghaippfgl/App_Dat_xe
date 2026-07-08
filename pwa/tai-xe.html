@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Tài xế giao hàng - Xe Nhà</title>
+<meta name="theme-color" content="#12161D">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-asphalt-900:#12161D;
+    --surface-800:#1C2129;
+    --surface-700:#262D38;
+    --surface-600:#2F3846;
+    --border-steel:#3A4453;
+    --text-fog:#ECEFF3;
+    --text-muted:#8B93A1;
+    --text-dim:#5C6472;
+    --accent-amber:#F2A93B;
+    --accent-amber-dim:rgba(242,169,59,0.14);
+    --route-green:#34C77B;
+    --route-green-dim:rgba(52,199,123,0.14);
+    --alert-red:#E5595D;
+    --alert-red-dim:rgba(229,89,93,0.14);
+    --blue:#7CA3FF;
+    --blue-dim:rgba(91,140,255,0.14);
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html, body{ height:100%; }
+  body{ font-family:'Be Vietnam Pro', sans-serif; background:var(--bg-asphalt-900); min-height:100vh; color:var(--text-fog); }
+  input, select, textarea, button{ font-family:inherit; }
+  .app{ display:none; flex-direction:column; min-height:100vh; }
+  .topbar{ display:flex; justify-content:space-between; align-items:center; padding:16px; border-bottom:1px solid var(--border-steel); flex-shrink:0; gap:10px; }
+  .topbar h1{ font-size:17px; font-weight:800; }
+  .topbar .sub{ font-size:11.5px; color:var(--text-muted); margin-top:2px; }
+  .icon-btn{ background:var(--surface-700); border:1px solid var(--border-steel); color:var(--text-fog);
+    border-radius:9px; padding:8px 12px; font-size:12.5px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .tabs{ display:flex; border-bottom:1px solid var(--border-steel); flex-shrink:0; overflow-x:auto; }
+  .tab-btn{ flex:1 1 0; min-width:64px; text-align:center; padding:13px 2px; font-size:12.5px; font-weight:700; color:var(--text-dim);
+    cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; }
+  .tab-btn.active{ color:var(--accent-amber); border-bottom-color:var(--accent-amber); }
+  .panel{ display:none; flex:1; flex-direction:column; min-height:0; }
+  .panel.active{ display:flex; }
+  .scroll{ flex:1; overflow-y:auto; padding:14px 16px 24px; }
+  .card{ background:var(--surface-800); border:1px solid var(--border-steel); border-radius:16px; padding:14px; margin-bottom:12px; }
+  .card-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; gap:8px; }
+  .card-name{ font-size:14.5px; font-weight:700; }
+  .card-sub{ font-size:12px; color:var(--text-muted); margin-top:2px; }
+  .status-badge{ font-size:10.5px; font-weight:800; padding:4px 10px; border-radius:100px; white-space:nowrap; }
+  .status-badge.ready{ background:var(--accent-amber-dim); color:var(--accent-amber); }
+  .status-badge.assigned, .status-badge.delivering{ background:var(--blue-dim); color:var(--blue); }
+  .status-badge.delivered{ background:var(--route-green-dim); color:var(--route-green); }
+  .card-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .btn-tiny{ background:var(--accent-amber); color:#1A1200; border:none; font-weight:700; font-size:12px;
+    padding:9px 12px; border-radius:9px; cursor:pointer; }
+  .btn-tiny.ghost{ background:var(--surface-700); color:var(--text-fog); border:1px solid var(--border-steel); }
+  .btn-tiny.red{ background:var(--alert-red-dim); color:var(--alert-red); }
+  .btn-tiny.blue{ background:var(--blue-dim); color:var(--blue); }
+  .btn-full{ width:100%; background:var(--accent-amber); color:#1A1200; border:none; font-weight:800; font-size:14.5px;
+    padding:13px; border-radius:12px; cursor:pointer; margin-top:14px; }
+  .btn-full.ghost{ background:var(--surface-700); color:var(--text-fog); border:1px solid var(--border-steel); }
+  .empty-state{ text-align:center; color:var(--text-dim); font-size:13px; padding:50px 20px; line-height:1.6; }
+  .field{ margin-bottom:12px; }
+  .field-label{ font-size:12.5px; color:var(--text-muted); display:block; margin-bottom:6px; }
+  .native-input{ width:100%; background:var(--bg-asphalt-900); border:1px solid var(--border-steel); border-radius:9px;
+    color:var(--text-fog); padding:11px; font-size:14.5px; }
+
+  /* ONBOARDING */
+  .onboard-screen{ display:none; flex-direction:column; padding:24px; min-height:100vh; align-items:stretch; }
+  .onboard-screen.active{ display:flex; }
+  .onboard-logo{ font-size:44px; text-align:center; margin-top:60px; }
+  .onboard-title{ font-size:24px; font-weight:800; text-align:center; margin-top:10px; }
+  .onboard-sub{ font-size:13.5px; color:var(--text-muted); text-align:center; margin-top:8px; line-height:1.6; }
+  .onboard-body{ margin-top:30px; }
+  .back-link{ font-size:14px; color:var(--text-muted); cursor:pointer; margin-bottom:10px; }
+
+  /* TOGGLE SWITCH */
+  .switch{ position:relative; width:48px; height:26px; display:inline-block; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .slider{ position:absolute; cursor:pointer; inset:0; background:var(--surface-600); border-radius:26px; transition:0.2s; }
+  .slider:before{ content:""; position:absolute; height:20px; width:20px; left:3px; bottom:3px; background:white; border-radius:50%; transition:0.2s; }
+  input:checked + .slider{ background:var(--route-green); }
+  input:checked + .slider:before{ transform:translateX(22px); }
+</style>
+</head>
+<body>
+
+<!-- ONBOARDING: LOGIN -->
+<div class="onboard-screen active" id="screen-login">
+  <div class="onboard-logo">🛵</div>
+  <div class="onboard-title">Tài xế giao hàng</div>
+  <div class="onboard-sub">Đăng nhập bằng số điện thoại đã đăng ký tài xế Xe Nhà</div>
+  <div class="onboard-body">
+    <div class="field">
+      <span class="field-label">Số điện thoại</span>
+      <input type="text" id="login-phone" class="native-input" placeholder="090 xxx xxxx">
+    </div>
+    <div class="field">
+      <span class="field-label">Mật khẩu</span>
+      <input type="password" id="login-password" class="native-input" placeholder="Mật khẩu của bạn" onkeydown="if(event.key==='Enter') handleDriverLogin();">
+    </div>
+    <div id="login-error" style="display:none; color:var(--alert-red); font-size:13px; margin-bottom:10px;"></div>
+    <button class="btn-full" id="login-btn" onclick="handleDriverLogin()">Đăng nhập</button>
+    <div class="onboard-sub" style="margin-top:16px;">Chưa có tài khoản tài xế? Liên hệ admin để được đăng ký trước nhé.</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="app" id="app-root">
+  <div class="topbar">
+    <div>
+      <h1 id="driver-name-header">Tài xế</h1>
+      <div class="sub" id="driver-sub-header"></div>
+    </div>
+    <label class="switch" title="Đang nhận đơn giao hàng">
+      <input type="checkbox" id="accepting-toggle" onchange="toggleAcceptingOrders()">
+      <span class="slider"></span>
+    </label>
+    <button class="icon-btn" onclick="handleLogout()">🚪 Thoát</button>
+  </div>
+  <div class="tabs">
+    <div class="tab-btn active" id="tab-available" onclick="switchTab('available')">Đơn có thể nhận</div>
+    <div class="tab-btn" id="tab-mine" onclick="switchTab('mine')">Đơn của tôi</div>
+    <div class="tab-btn" id="tab-earnings" onclick="switchTab('earnings')">Thu nhập</div>
+    <div class="tab-btn" id="tab-settings" onclick="switchTab('settings')">Cài đặt</div>
+  </div>
+
+  <!-- AVAILABLE ORDERS PANEL -->
+  <div class="panel active" id="panel-available">
+    <div class="scroll">
+      <div id="available-list"></div>
+      <div class="empty-state" id="available-empty" style="display:none;">Chưa có đơn nào sẵn sàng để nhận. Bật công tắc "Đang nhận đơn" và chờ nhé.</div>
+    </div>
+  </div>
+
+  <!-- MY ORDERS PANEL -->
+  <div class="panel" id="panel-mine">
+    <div class="scroll">
+      <div id="mine-list"></div>
+      <div class="empty-state" id="mine-empty" style="display:none;">Bạn chưa nhận đơn nào đang xử lý.</div>
+    </div>
+  </div>
+
+  <!-- EARNINGS PANEL -->
+  <div class="panel" id="panel-earnings">
+    <div class="scroll">
+      <div class="card" style="text-align:center; margin-bottom:14px;">
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Tổng thu nhập từ phí ship</div>
+        <div style="font-size:24px; font-weight:800; color:var(--route-green);" id="earnings-total">0 đ</div>
+        <div style="font-size:12px; color:var(--text-muted); margin-top:4px;" id="earnings-count">0 đơn đã giao</div>
+      </div>
+      <div class="card-name" style="margin-bottom:8px;">Lịch sử đơn đã giao</div>
+      <div id="earnings-list"></div>
+      <div class="empty-state" id="earnings-empty" style="display:none;">Chưa có đơn nào giao thành công.</div>
+    </div>
+  </div>
+
+  <!-- SETTINGS PANEL -->
+  <div class="panel" id="panel-settings">
+    <div class="scroll">
+      <div class="card">
+        <div class="card-name" style="margin-bottom:10px;">🔒 Đổi mật khẩu</div>
+        <div class="field">
+          <span class="field-label">Mật khẩu mới</span>
+          <input type="password" id="settings-new-password" class="native-input" placeholder="Tối thiểu 4 ký tự">
+        </div>
+        <div class="field">
+          <span class="field-label">Nhập lại mật khẩu mới</span>
+          <input type="password" id="settings-new-password-confirm" class="native-input" placeholder="Nhập lại">
+        </div>
+        <button class="btn-tiny ghost" onclick="changeDriverPassword()">Cập nhật mật khẩu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ---------- HÀM TIỆN ÍCH DÙNG CHUNG ---------- */
+  async function hashText(text){
+    const enc = new TextEncoder().encode(text);
+    const buf = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  function normalizePhone(phone){
+    if (!phone) return '';
+    let digits = String(phone).replace(/\D/g, '');
+    if (digits.startsWith('84')) digits = '0' + digits.slice(2);
+    else if (!digits.startsWith('0')) digits = '0' + digits;
+    return digits;
+  }
+  function formatVnd(num){
+    return Math.round(num || 0).toLocaleString('vi-VN') + ' đ';
+  }
+  function escapeHtml(str){
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  }
+
+  let currentDriverId = null;
+  let currentDriverData = null;
+
+  function showScreen(id){
+    document.querySelectorAll('.onboard-screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function showAppRoot(driver){
+    currentDriverData = driver;
+    document.querySelectorAll('.onboard-screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('app-root').style.display = 'flex';
+    document.getElementById('driver-name-header').textContent = driver.name || 'Tài xế';
+    document.getElementById('driver-sub-header').textContent = driver.car || '';
+    document.getElementById('accepting-toggle').checked = driver.acceptingFoodOrders === true;
+    if (window.listenForAvailableOrders) window.listenForAvailableOrders();
+    if (window.listenForMyOrders) window.listenForMyOrders(currentDriverId);
+  }
+
+  async function handleDriverLogin(){
+    const btn = document.getElementById('login-btn');
+    const errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+    const phone = normalizePhone(document.getElementById('login-phone').value.trim());
+    const password = document.getElementById('login-password').value;
+    if (!phone || !password) { errEl.textContent = 'Nhập đủ số điện thoại và mật khẩu.'; errEl.style.display = 'block'; return; }
+    if (btn) { btn.textContent = 'Đang đăng nhập...'; btn.disabled = true; }
+    try {
+      const driver = await window.findDriverByPhone(phone);
+      if (!driver) {
+        errEl.textContent = 'Không tìm thấy tài xế với số này. Liên hệ admin để được đăng ký nhé.'; errEl.style.display = 'block';
+      } else {
+        const enteredHash = await hashText(password);
+        if (driver.passwordHash && driver.passwordHash !== enteredHash) {
+          errEl.textContent = 'Sai mật khẩu. Thử lại nhé.'; errEl.style.display = 'block';
+        } else {
+          if (!driver.passwordHash) {
+            await window.setDriverPassword(driver.id, enteredHash);
+          }
+          currentDriverId = driver.id;
+          localStorage.setItem('xn_driver_id', driver.id);
+          showAppRoot(driver);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = 'Có lỗi khi đăng nhập, thử lại nhé.'; errEl.style.display = 'block';
+    }
+    if (btn) { btn.textContent = 'Đăng nhập'; btn.disabled = false; }
+  }
+
+  function handleLogout(){
+    if (!confirm('Đăng xuất khỏi tài khoản tài xế?')) return;
+    localStorage.removeItem('xn_driver_id');
+    currentDriverId = null;
+    currentDriverData = null;
+    document.getElementById('app-root').style.display = 'none';
+    document.getElementById('login-phone').value = '';
+    document.getElementById('login-password').value = '';
+    showScreen('screen-login');
+  }
+
+  function switchTab(name){
+    document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    document.getElementById('panel-' + name).classList.add('active');
+  }
+
+  async function toggleAcceptingOrders(){
+    const checked = document.getElementById('accepting-toggle').checked;
+    try {
+      await window.setDriverAccepting(currentDriverId, checked);
+    } catch (err) { console.error(err); alert('Có lỗi khi cập nhật trạng thái.'); }
+  }
+
+  /* ---------- ĐƠN CÓ THỂ NHẬN ---------- */
+  function renderAvailableOrders(orders){
+    const container = document.getElementById('available-list');
+    const emptyEl = document.getElementById('available-empty');
+    if (orders.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    orders.forEach((o) => {
+      const itemsText = (o.items || []).map(it => it.qty + 'x ' + it.name).join(', ');
+      html += '<div class="card">' +
+        '<div class="card-top"><div><div class="card-name">' + escapeHtml(o.storeName || 'Cửa hàng') + '</div>' +
+        '<div class="card-sub">' + escapeHtml(itemsText) + '</div></div>' +
+        '<div style="font-weight:800; color:var(--route-green); white-space:nowrap;">+' + formatVnd(o.deliveryFee) + '</div></div>' +
+        '<div class="card-sub" style="margin-bottom:6px;">📍 Lấy tại: ' + escapeHtml(o.storeAddress || '') + '</div>' +
+        '<div class="card-sub" style="margin-bottom:8px;">🏠 Giao đến: ' + escapeHtml(o.deliveryAddress || '') + '</div>' +
+        '<div class="card-actions"><button class="btn-tiny" style="width:100%;" onclick="acceptOrder(\'' + o.id + '\')">✓ Nhận đơn này (+' + formatVnd(o.deliveryFee) + ')</button></div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+
+  async function acceptOrder(orderId){
+    try {
+      const result = await window.tryAcceptFoodOrder(orderId, currentDriverId, currentDriverData);
+      if (!result.success) {
+        alert(result.message || 'Đơn này vừa có tài xế khác nhận mất rồi.');
+      }
+    } catch (err) { console.error(err); alert('Có lỗi khi nhận đơn.'); }
+  }
+
+  /* ---------- ĐƠN CỦA TÔI ---------- */
+  function myOrderStatusLabel(status){
+    const map = { assigned: 'Đã nhận, đi lấy hàng', delivering: 'Đang giao', delivered: 'Đã giao' };
+    return map[status] || status;
+  }
+  function renderMyOrders(orders){
+    const container = document.getElementById('mine-list');
+    const emptyEl = document.getElementById('mine-empty');
+    const active = orders.filter(o => o.status === 'assigned' || o.status === 'delivering');
+    if (active.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    active.forEach((o) => {
+      const itemsText = (o.items || []).map(it => it.qty + 'x ' + it.name).join(', ');
+      let actionBtn = '';
+      if (o.status === 'assigned') {
+        actionBtn = '<button class="btn-tiny" style="width:100%;" onclick="updateMyOrderStatus(\'' + o.id + '\', \'delivering\')">🛵 Đã lấy hàng, đang giao</button>';
+      } else if (o.status === 'delivering') {
+        actionBtn = '<button class="btn-tiny" style="width:100%;" onclick="updateMyOrderStatus(\'' + o.id + '\', \'delivered\')">✅ Đã giao xong</button>';
+      }
+      html += '<div class="card">' +
+        '<div class="card-top"><div><div class="card-name">' + escapeHtml(o.storeName || 'Cửa hàng') + '</div>' +
+        '<div class="card-sub">' + escapeHtml(itemsText) + '</div></div>' +
+        '<div class="status-badge ' + o.status + '">' + myOrderStatusLabel(o.status) + '</div></div>' +
+        '<div class="card-sub" style="margin-bottom:4px;">📍 Lấy tại: ' + escapeHtml(o.storeAddress || '') + '</div>' +
+        '<div class="card-sub" style="margin-bottom:4px;">🏠 Giao đến: ' + escapeHtml(o.deliveryAddress || '') + '</div>' +
+        '<div class="card-sub" style="margin-bottom:8px;">👤 Khách: ' + escapeHtml(o.customerName || '') + (o.customerPhone ? ' - ' + escapeHtml(o.customerPhone) : '') + '</div>' +
+        '<div style="font-weight:700;color:var(--route-green);margin-bottom:8px;">Phí ship của bạn: ' + formatVnd(o.deliveryFee) + '</div>' +
+        actionBtn +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+  async function updateMyOrderStatus(orderId, status){
+    try {
+      await window.updateFoodOrderStatusByDriver(orderId, status);
+    } catch (err) { console.error(err); alert('Có lỗi khi cập nhật đơn.'); }
+  }
+
+  /* ---------- THU NHẬP ---------- */
+  function renderEarnings(orders){
+    const delivered = orders.filter(o => o.status === 'delivered');
+    const total = delivered.reduce((s, o) => s + (o.deliveryFee || 0), 0);
+    document.getElementById('earnings-total').textContent = formatVnd(total);
+    document.getElementById('earnings-count').textContent = delivered.length + ' đơn đã giao';
+    const listEl = document.getElementById('earnings-list');
+    const emptyEl = document.getElementById('earnings-empty');
+    if (delivered.length === 0) {
+      listEl.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    delivered.forEach((o) => {
+      html += '<div class="card" style="margin-bottom:10px;">' +
+        '<div class="card-top"><div class="card-name">' + escapeHtml(o.storeName || '') + '</div>' +
+        '<div style="font-weight:700;color:var(--route-green);">+' + formatVnd(o.deliveryFee) + '</div></div>' +
+        '<div class="card-sub">Giao đến: ' + escapeHtml(o.deliveryAddress || '') + '</div>' +
+        '</div>';
+    });
+    listEl.innerHTML = html;
+  }
+
+  /* ---------- SETTINGS ---------- */
+  async function changeDriverPassword(){
+    const newPass = document.getElementById('settings-new-password').value;
+    const confirmPass = document.getElementById('settings-new-password-confirm').value;
+    if (!newPass || newPass.length < 4) { alert('Mật khẩu nên dài tối thiểu 4 ký tự.'); return; }
+    if (newPass !== confirmPass) { alert('Hai mật khẩu không khớp nhau.'); return; }
+    try {
+      const hash = await hashText(newPass);
+      await window.setDriverPassword(currentDriverId, hash);
+      document.getElementById('settings-new-password').value = '';
+      document.getElementById('settings-new-password-confirm').value = '';
+      alert('Đã cập nhật mật khẩu!');
+    } catch (err) { console.error(err); alert('Có lỗi khi đổi mật khẩu.'); }
+  }
+
+  /* ---------- KHỞI ĐỘNG ---------- */
+  window.onFirebaseReady = async function(){
+    const savedId = localStorage.getItem('xn_driver_id');
+    if (savedId) {
+      try {
+        const driver = await window.getDriverById(savedId);
+        if (driver) {
+          currentDriverId = savedId;
+          showAppRoot(driver);
+        } else {
+          localStorage.removeItem('xn_driver_id');
+        }
+      } catch (err) { console.error(err); }
+    }
+  };
+</script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getFirestore, collection, doc, getDoc, setDoc, updateDoc, serverTimestamp,
+    query, where, onSnapshot, getDocs, runTransaction
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBb8uSsLuChx4OYONl2ffFFwDSbSncZBpI",
+    authDomain: "hainguyen-ffb25.firebaseapp.com",
+    projectId: "hainguyen-ffb25",
+    storageBucket: "hainguyen-ffb25.firebasestorage.app",
+    messagingSenderId: "837257334024",
+    appId: "1:837257334024:web:583b46747d823b4c83f0bd",
+    measurementId: "G-1CC6JB312T"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  function normalizePhoneModule(phone){
+    if (!phone) return '';
+    let digits = String(phone).replace(/\D/g, '');
+    if (digits.startsWith('84')) digits = '0' + digits.slice(2);
+    else if (!digits.startsWith('0')) digits = '0' + digits;
+    return digits;
+  }
+
+  window.findDriverByPhone = async function(phone){
+    const target = normalizePhoneModule(phone);
+    const q = query(collection(db, "drivers"), where("phone", "==", target));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return { id: d.id, ...d.data() };
+  };
+
+  window.getDriverById = async function(driverId){
+    const snap = await getDoc(doc(db, "drivers", driverId));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() };
+  };
+
+  window.setDriverPassword = async function(driverId, hash){
+    await setDoc(doc(db, "drivers", driverId), { passwordHash: hash, updatedAt: serverTimestamp() }, { merge: true });
+  };
+
+  window.setDriverAccepting = async function(driverId, accepting){
+    await setDoc(doc(db, "drivers", driverId), { acceptingFoodOrders: accepting, updatedAt: serverTimestamp() }, { merge: true });
+  };
+
+  window.listenForAvailableOrders = function(){
+    const q = query(collection(db, "foodOrders"), where("status", "==", "ready"));
+    onSnapshot(q, (snap) => {
+      const orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      orders.sort((a, b) => {
+        const at = (a.createdAt && a.createdAt.toMillis) ? a.createdAt.toMillis() : 0;
+        const bt = (b.createdAt && b.createdAt.toMillis) ? b.createdAt.toMillis() : 0;
+        return at - bt;
+      });
+      if (window.renderAvailableOrders) window.renderAvailableOrders(orders);
+    });
+  };
+  window.renderAvailableOrders = renderAvailableOrders;
+
+  let myOrdersCache = [];
+  window.listenForMyOrders = function(driverId){
+    const q = query(collection(db, "foodOrders"), where("driverId", "==", driverId));
+    onSnapshot(q, (snap) => {
+      myOrdersCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (window.renderMyOrders) window.renderMyOrders(myOrdersCache);
+      if (window.renderEarnings) window.renderEarnings(myOrdersCache);
+    });
+  };
+  window.renderMyOrders = renderMyOrders;
+  window.renderEarnings = renderEarnings;
+
+  window.tryAcceptFoodOrder = async function(orderId, driverId, driverData){
+    const orderRef = doc(db, "foodOrders", orderId);
+    try {
+      await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(orderRef);
+        if (!snap.exists()) throw new Error('NOT_FOUND');
+        const data = snap.data();
+        if (data.status !== 'ready') throw new Error('ALREADY_TAKEN');
+        transaction.update(orderRef, {
+          driverId: driverId,
+          driverName: driverData.name || '',
+          driverPhone: driverData.phone || '',
+          status: 'assigned',
+          updatedAt: serverTimestamp()
+        });
+      });
+      return { success: true };
+    } catch (err) {
+      if (err.message === 'ALREADY_TAKEN') return { success: false, message: 'Đơn này vừa có tài xế khác nhận mất rồi.' };
+      console.error(err);
+      return { success: false, message: 'Có lỗi khi nhận đơn, thử lại nhé.' };
+    }
+  };
+
+  window.updateFoodOrderStatusByDriver = async function(orderId, status){
+    await updateDoc(doc(db, "foodOrders", orderId), { status: status, updatedAt: serverTimestamp() });
+  };
+
+  if (window.onFirebaseReady) window.onFirebaseReady();
+</script>
+
+</body>
+</html>
