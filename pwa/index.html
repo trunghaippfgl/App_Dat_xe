@@ -1944,12 +1944,23 @@
 
   async function openFoodStores(){
     openSubScreen('screen-food-stores');
+    const container = document.getElementById('food-stores-list');
+    const emptyEl = document.getElementById('food-stores-empty');
+    container.innerHTML = '<div class="empty-state">Đang tải danh sách cửa hàng...</div>';
+    emptyEl.style.display = 'none';
     const ready = await waitForFirebaseReady();
-    if (ready && window.getApprovedStores) {
+    if (!ready) {
+      container.innerHTML = '<div class="empty-state">Không kết nối được. Bạn kiểm tra mạng và thử lại nhé.</div>';
+      return;
+    }
+    if (window.getApprovedStores) {
       try {
         const stores = await window.getApprovedStores();
         renderFoodStoresList(stores);
-      } catch (err) { console.error(err); }
+      } catch (err) {
+        console.error('Lỗi khi tải danh sách cửa hàng:', err);
+        container.innerHTML = '<div class="empty-state">Có lỗi khi tải danh sách cửa hàng. Thử lại sau nhé.</div>';
+      }
     }
   }
 
