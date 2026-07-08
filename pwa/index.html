@@ -845,7 +845,7 @@
           <div id="food-menu-list"></div>
           <div class="empty-state" id="food-menu-empty" style="display:none;">Cửa hàng chưa đăng món nào.</div>
         </div>
-        <div id="food-cart-bar" style="display:none; position:fixed; bottom:16px; left:16px; right:16px; max-width:388px; margin:0 auto; background:var(--accent-amber); color:#1A1200; border-radius:14px; padding:14px 18px; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4);" onclick="openFoodCart()">
+        <div id="food-cart-bar" style="display:none; position:absolute; bottom:16px; left:16px; right:16px; background:var(--accent-amber); color:#1A1200; border-radius:14px; padding:14px 18px; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); z-index:5;" onclick="openFoodCart()">
           <span id="food-cart-bar-text" style="font-weight:800;">🛒 0 món</span>
           <span id="food-cart-bar-total" style="font-weight:800;">0 đ</span>
         </div>
@@ -2079,7 +2079,7 @@
     const count = foodCartCount();
     if (count === 0) { bar.style.display = 'none'; return; }
     bar.style.display = 'flex';
-    document.getElementById('food-cart-bar-text').textContent = '🛒 ' + count + ' món';
+    document.getElementById('food-cart-bar-text').textContent = '🛒 ' + count + ' món · Xem giỏ hàng';
     document.getElementById('food-cart-bar-total').textContent = formatVnd(foodCartSubtotal());
   }
 
