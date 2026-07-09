@@ -1764,6 +1764,7 @@
     const time = document.getElementById('time-input').value;
     const customerName = localStorage.getItem('xn_customer_name') || 'Khách';
     const customerId = localStorage.getItem('xn_customer_id') || '';
+    const customerPhone = localStorage.getItem('xn_customer_phone') || '';
 
     if (!pickup) { alert('Bạn nhập điểm đón trước nhé (hoặc bấm 📍 để lấy vị trí hiện tại).'); return; }
     if (!dropoff) { alert('Bạn nhập điểm đến trước nhé.'); return; }
@@ -1804,6 +1805,7 @@
         const newId = await window.createBookingInFirestore({
           customerId: customerId,
           customerName: customerName,
+          customerPhone: customerPhone,
           pickup: pickup,
           dropoff: dropoff,
           date: date,
@@ -2570,6 +2572,7 @@
     const docRef = await addDoc(collection(db, "bookings"), {
       customerId: data.customerId || '',
       customerName: data.customerName || 'Khách',
+      customerPhone: data.customerPhone || '',
       pickup: data.pickup || '',
       dropoff: data.dropoff || '',
       date: data.date || '',

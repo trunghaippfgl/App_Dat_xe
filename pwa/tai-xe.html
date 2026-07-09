@@ -122,6 +122,7 @@
   <div id="membership-banner" style="display:none; padding:10px 16px; font-size:12.5px; font-weight:700; text-align:center;"></div>
   <div class="tabs">
     <div class="tab-btn active" id="tab-available" onclick="switchTab('available')">Đơn có thể nhận</div>
+    <div class="tab-btn" id="tab-rides" onclick="switchTab('rides')">Chuyến xe</div>
     <div class="tab-btn" id="tab-mine" onclick="switchTab('mine')">Đơn của tôi</div>
     <div class="tab-btn" id="tab-earnings" onclick="switchTab('earnings')">Thu nhập</div>
     <div class="tab-btn" id="tab-settings" onclick="switchTab('settings')">Cài đặt</div>
@@ -132,6 +133,18 @@
     <div class="scroll">
       <div id="available-list"></div>
       <div class="empty-state" id="available-empty" style="display:none;">Chưa có đơn nào sẵn sàng để nhận. Bật công tắc "Đang nhận đơn" và chờ nhé.</div>
+    </div>
+  </div>
+
+  <!-- RIDE BOOKINGS PANEL -->
+  <div class="panel" id="panel-rides">
+    <div class="scroll">
+      <div class="card-name" style="margin-bottom:8px;">🎯 Khách chỉ định bạn (chờ admin xác nhận)</div>
+      <div id="preferred-rides-list"></div>
+      <div class="empty-state" id="preferred-rides-empty" style="display:none; padding:20px;">Chưa có khách nào chỉ định bạn.</div>
+      <div class="card-name" style="margin:16px 0 8px;">🚗 Chuyến xe được giao cho bạn</div>
+      <div id="my-rides-list"></div>
+      <div class="empty-state" id="my-rides-empty" style="display:none; padding:20px;">Bạn chưa được giao chuyến xe nào.</div>
     </div>
   </div>
 
@@ -262,6 +275,7 @@
 
     if (window.listenForAvailableOrders) window.listenForAvailableOrders();
     if (window.listenForMyOrders) window.listenForMyOrders(currentDriverId);
+    if (window.listenForMyRideBookings) window.listenForMyRideBookings(currentDriverId);
   }
 
   function copyReferralCode(){
@@ -325,6 +339,61 @@
     try {
       await window.setDriverAccepting(currentDriverId, checked);
     } catch (err) { console.error(err); alert('Có lỗi khi cập nhật trạng thái.'); }
+  }
+
+  /* ---------- CHUYẾN XE ---------- */
+  function rideStatusLabel(status){
+    const map = { requested: 'Chờ chốt giá', confirmed: 'Đã chốt giá', done: 'Hoàn thành', cancelled: 'Đã hủy' };
+    return map[status] || status;
+  }
+  function renderMyRides(bookings){
+    const container = document.getElementById('my-rides-list');
+    const emptyEl = document.getElementById('my-rides-empty');
+    const active = bookings.filter(b => b.status !== 'done' && b.status !== 'cancelled');
+    if (active.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    active.forEach((b) => {
+      html += '<div class="card">' +
+        '<div class="card-top"><div><div class="card-name">' + escapeHtml(b.customerName || 'Khách') + '</div>' +
+        '<div class="card-sub">' + escapeHtml(b.date || '') + ' · ' + escapeHtml(b.time || '') + (b.customerPhone ? ' · ' + escapeHtml(b.customerPhone) : '') + '</div></div>' +
+        '<div class="status-badge assigned">' + rideStatusLabel(b.status) + '</div></div>' +
+        '<div class="card-sub" style="margin-bottom:6px;">📍 ' + escapeHtml(b.pickup || '') + ' → ' + escapeHtml(b.dropoff || '') + '</div>' +
+        (b.price ? '<div style="font-weight:700;color:var(--route-green);margin-bottom:8px;">💰 ' + escapeHtml(b.price) + '</div>' : '') +
+        (b.status === 'confirmed' ? '<div class="card-actions"><button class="btn-tiny" style="width:100%;" onclick="markRideCompleted(\'' + b.id + '\')">✅ Đánh dấu đã hoàn thành</button></div>' : '') +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+  function renderPreferredRides(bookings){
+    const container = document.getElementById('preferred-rides-list');
+    const emptyEl = document.getElementById('preferred-rides-empty');
+    const pending = bookings.filter(b => !b.driverId && b.status !== 'done' && b.status !== 'cancelled');
+    if (pending.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    pending.forEach((b) => {
+      html += '<div class="card">' +
+        '<div class="card-top"><div><div class="card-name">' + escapeHtml(b.customerName || 'Khách') + '</div>' +
+        '<div class="card-sub">' + escapeHtml(b.date || '') + ' · ' + escapeHtml(b.time || '') + '</div></div>' +
+        '<div class="status-badge ready">' + rideStatusLabel(b.status) + '</div></div>' +
+        '<div class="card-sub">📍 ' + escapeHtml(b.pickup || '') + ' → ' + escapeHtml(b.dropoff || '') + '</div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+  async function markRideCompleted(bookingId){
+    if (!confirm('Xác nhận chuyến đi này đã hoàn thành?')) return;
+    try { await window.setRideStatusDone(bookingId); }
+    catch (err) { console.error(err); alert('Có lỗi khi cập nhật.'); }
   }
 
   /* ---------- ĐƠN CÓ THỂ NHẬN ---------- */
@@ -589,6 +658,25 @@
 
   window.updateFoodOrderStatusByDriver = async function(orderId, status){
     await updateDoc(doc(db, "foodOrders", orderId), { status: status, updatedAt: serverTimestamp() });
+  };
+
+  window.listenForMyRideBookings = function(driverId){
+    const q1 = query(collection(db, "bookings"), where("driverId", "==", driverId));
+    onSnapshot(q1, (snap) => {
+      const bookings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (window.renderMyRides) window.renderMyRides(bookings);
+    });
+    const q2 = query(collection(db, "bookings"), where("preferredDriverId", "==", driverId));
+    onSnapshot(q2, (snap) => {
+      const bookings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (window.renderPreferredRides) window.renderPreferredRides(bookings);
+    });
+  };
+  window.renderMyRides = renderMyRides;
+  window.renderPreferredRides = renderPreferredRides;
+
+  window.setRideStatusDone = async function(bookingId){
+    await updateDoc(doc(db, "bookings", bookingId), { status: 'done', updatedAt: serverTimestamp() });
   };
 
   if (window.onFirebaseReady) window.onFirebaseReady();
