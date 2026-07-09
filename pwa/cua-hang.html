@@ -368,6 +368,7 @@
     document.getElementById('settings-commission-display').textContent = (store.commissionPercent || 0) + '%';
     if (window.listenForMenuItems) window.listenForMenuItems(currentStoreId);
     if (window.listenForStoreOrders) window.listenForStoreOrders(currentStoreId);
+    if (window.autoRestoreNotifications) window.autoRestoreNotifications();
   }
 
   async function handleStoreLogin(){
@@ -719,29 +720,47 @@
   const messaging = getMessaging(app);
   const VAPID_KEY = "BHZahFM6YdPRj7uA1b6FgNh7UIegA_5nfu2sTIShQrWnRSY1UuRTDAsscUnmCR4vVNv6YAOnoVzNT5dcbhcTJzk";
 
+  async function registerFcmToken(){
+    const registration = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+    return await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
+  }
+
   window.enableNotifications = function(){
     if (!('Notification' in window)) { alert('Trình duyệt này không hỗ trợ thông báo.'); return; }
     const storeId = localStorage.getItem('xn_store_id');
     if (!storeId) { alert('Bạn cần đăng nhập trước.'); return; }
     const btn = document.getElementById('notif-btn');
     btn.textContent = 'Đang bật...';
-    Notification.requestPermission().then((perm) => {
+    Notification.requestPermission().then(async (perm) => {
       if (perm !== 'granted') {
         alert('Bạn chưa cho phép thông báo. Có thể bật lại trong cài đặt trình duyệt.');
         btn.textContent = '🔔 Bật thông báo';
         return;
       }
-      navigator.serviceWorker.register('firebase-messaging-sw.js').then((registration) => {
-        getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration })
-          .then((token) => {
-            if (!token) { alert('Không lấy được mã thông báo, thử lại nhé.'); btn.textContent = '🔔 Bật thông báo'; return; }
-            addDoc(collection(db, "storeTokens"), { token: token, storeId: storeId, createdAt: serverTimestamp() })
-              .then(() => { btn.textContent = '✓ Đã bật thông báo'; });
-          })
-          .catch((err) => { console.error('FCM token error:', err); alert('Có lỗi khi đăng ký thông báo: ' + err.message); btn.textContent = '🔔 Bật thông báo'; });
-      });
+      try {
+        const token = await registerFcmToken();
+        if (!token) { alert('Không lấy được mã thông báo, thử lại nhé.'); btn.textContent = '🔔 Bật thông báo'; return; }
+        await setDoc(doc(db, "storeTokens", token), { token: token, storeId: storeId, createdAt: serverTimestamp() }, { merge: true });
+        btn.textContent = '✓ Đã bật thông báo';
+      } catch (err) { console.error('FCM token error:', err); alert('Có lỗi khi đăng ký thông báo: ' + err.message); btn.textContent = '🔔 Bật thông báo'; }
     });
   };
+
+  async function autoRestoreNotifications(){
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+    const storeId = localStorage.getItem('xn_store_id');
+    if (!storeId) return;
+    try {
+      const token = await registerFcmToken();
+      if (token) {
+        await setDoc(doc(db, "storeTokens", token), { token: token, storeId: storeId, createdAt: serverTimestamp() }, { merge: true });
+        const btn = document.getElementById('notif-btn');
+        if (btn) btn.textContent = '✓ Đã bật thông báo';
+      }
+    } catch (err) { console.error('Không tự bật lại được thông báo:', err); }
+  }
+  window.autoRestoreNotifications = autoRestoreNotifications;
 
   onMessage(messaging, (payload) => {
     const title = (payload.notification && payload.notification.title) || 'Thông báo mới';
