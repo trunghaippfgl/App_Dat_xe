@@ -384,9 +384,12 @@
         errEl.textContent = 'Không tìm thấy cửa hàng với số này.'; errEl.style.display = 'block';
       } else {
         const enteredHash = await hashText(password);
-        if (store.passwordHash !== enteredHash) {
+        if (store.passwordHash && store.passwordHash !== enteredHash) {
           errEl.textContent = 'Sai mật khẩu. Thử lại nhé.'; errEl.style.display = 'block';
         } else {
+          if (!store.passwordHash) {
+            await window.updateStoreProfile(store.id, { passwordHash: enteredHash });
+          }
           currentStoreId = store.id;
           localStorage.setItem('xn_store_id', store.id);
           showAppRoot(store);

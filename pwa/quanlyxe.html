@@ -327,6 +327,7 @@
   <!-- CLINICS PANEL -->
   <div class="panel" id="panel-clinics">
     <div class="scroll">
+      <button class="btn-tiny" style="margin-bottom:12px;" onclick="openClinicModal()">+ Thêm phòng khám mới</button>
       <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
         <div class="chip on" data-clinicfilter="pending" onclick="setClinicFilter('pending')">Chờ duyệt</div>
         <div class="chip" data-clinicfilter="approved" onclick="setClinicFilter('approved')">Đã duyệt</div>
@@ -335,6 +336,50 @@
       </div>
       <div id="clinics-list"></div>
       <div class="empty-state" id="clinics-empty" style="display:none;">Chưa có phòng khám nào đăng ký.</div>
+    </div>
+  </div>
+
+  <!-- CLINIC ADD/EDIT MODAL -->
+  <div id="clinic-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--surface-800); border:1px solid var(--border-steel); border-radius:16px; padding:20px; width:100%; max-width:400px; max-height:88vh; overflow-y:auto;">
+      <div style="font-size:15px; font-weight:700; margin-bottom:14px;" id="clinic-modal-title">Thêm phòng khám</div>
+      <input type="hidden" id="clinic-modal-id">
+      <div style="margin-bottom:10px;"><input type="text" id="clinic-modal-name" placeholder="Tên phòng khám" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
+      <div style="margin-bottom:10px;"><input type="text" id="clinic-modal-owner" placeholder="Tên người quản lý" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
+      <div style="margin-bottom:10px;"><input type="text" id="clinic-modal-phone" placeholder="Số điện thoại" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
+      <div style="margin-bottom:10px;"><input type="text" id="clinic-modal-address" placeholder="Địa chỉ" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
+      <div class="hint-line" style="text-align:left; margin-bottom:10px;">Phòng khám sẽ tự đặt mật khẩu khi đăng nhập lần đầu bằng đúng SĐT này tại app "Phòng khám".</div>
+      <div class="card-actions">
+        <button class="btn-tiny ghost" onclick="closeClinicModal()">Hủy</button>
+        <button class="btn-tiny" onclick="saveClinicFromAdmin()">Lưu</button>
+        <button class="btn-tiny red" id="clinic-modal-delete-btn" style="display:none;" onclick="deleteClinicFromAdmin()">Xóa</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STORE ADD/EDIT MODAL -->
+  <div id="store-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--surface-800); border:1px solid var(--border-steel); border-radius:16px; padding:20px; width:100%; max-width:400px; max-height:88vh; overflow-y:auto;">
+      <div style="font-size:15px; font-weight:700; margin-bottom:14px;" id="store-modal-title">Thêm cửa hàng</div>
+      <input type="hidden" id="store-modal-id">
+      <div style="margin-bottom:10px;"><input type="text" id="store-modal-name" placeholder="Tên cửa hàng" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
+      <div style="margin-bottom:10px;">
+        <select id="store-modal-category" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;font-family:inherit;">
+          <option value="Quán ăn">Quán ăn</option>
+          <option value="Cafe / Trà sữa">Cafe / Trà sữa</option>
+          <option value="Đồ ăn vặt">Đồ ăn vặt</option>
+          <option value="Khác">Khác</option>
+        </select>
+      </div>
+      <div style="margin-bottom:10px;"><input type="text" id="store-modal-owner" placeholder="Tên chủ quán" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
+      <div style="margin-bottom:10px;"><input type="text" id="store-modal-phone" placeholder="Số điện thoại" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
+      <div style="margin-bottom:10px;"><input type="text" id="store-modal-address" placeholder="Địa chỉ" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
+      <div class="hint-line" style="text-align:left; margin-bottom:10px;">Chủ quán sẽ tự đặt mật khẩu khi đăng nhập lần đầu bằng đúng SĐT này tại app "Đối tác Xe Nhà".</div>
+      <div class="card-actions">
+        <button class="btn-tiny ghost" onclick="closeStoreModal()">Hủy</button>
+        <button class="btn-tiny" onclick="saveStoreFromAdmin()">Lưu</button>
+        <button class="btn-tiny red" id="store-modal-delete-btn" style="display:none;" onclick="deleteStoreFromAdmin()">Xóa</button>
+      </div>
     </div>
   </div>
 
@@ -380,6 +425,7 @@
     </div>
     <div class="scroll">
       <div id="store-sub-stores">
+        <button class="btn-tiny" style="margin-bottom:12px;" onclick="openStoreModal()">+ Thêm cửa hàng mới</button>
         <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
           <div class="chip on" data-storefilter="pending" onclick="setStoreFilter('pending')">Chờ duyệt</div>
           <div class="chip" data-storefilter="approved" onclick="setStoreFilter('approved')">Đã duyệt</div>
@@ -1596,6 +1642,10 @@
         '<button class="btn-tiny ghost" onclick="updateStoreCommission(\'' + s.id + '\')">Lưu % hoa hồng</button>' +
         '</div>' +
         '<div class="card-actions">' + actions + '</div>' +
+        '<div class="card-actions">' +
+        '<button class="btn-tiny ghost" onclick="openStoreModal(\'' + s.id + '\')">✏️ Sửa</button>' +
+        '<button class="btn-tiny red" onclick="confirmDeleteStore(\'' + s.id + '\')">🗑 Xóa</button>' +
+        '</div>' +
         '</div>';
     });
     container.innerHTML = html;
@@ -1622,6 +1672,56 @@
       await setDoc(doc(db, "stores", storeId), { commissionPercent: value, updatedAt: serverTimestamp() }, { merge: true });
       alert('Đã lưu % hoa hồng!');
     } catch (err) { console.error(err); alert('Có lỗi khi lưu.'); }
+  };
+
+  window.openStoreModal = function(storeId){
+    const store = storeId ? storesCache.find(s => s.id === storeId) : null;
+    document.getElementById('store-modal-title').textContent = store ? 'Sửa cửa hàng' : 'Thêm cửa hàng mới';
+    document.getElementById('store-modal-id').value = store ? store.id : '';
+    document.getElementById('store-modal-name').value = store ? (store.name || '') : '';
+    document.getElementById('store-modal-category').value = store ? (store.category || 'Quán ăn') : 'Quán ăn';
+    document.getElementById('store-modal-owner').value = store ? (store.ownerName || '') : '';
+    document.getElementById('store-modal-phone').value = store ? (store.phone || '') : '';
+    document.getElementById('store-modal-address').value = store ? (store.address || '') : '';
+    document.getElementById('store-modal-delete-btn').style.display = store ? 'inline-block' : 'none';
+    document.getElementById('store-modal').style.display = 'flex';
+  };
+  window.closeStoreModal = function(){
+    document.getElementById('store-modal').style.display = 'none';
+  };
+  window.saveStoreFromAdmin = async function(){
+    const id = document.getElementById('store-modal-id').value;
+    const name = document.getElementById('store-modal-name').value.trim();
+    const category = document.getElementById('store-modal-category').value;
+    const ownerName = document.getElementById('store-modal-owner').value.trim();
+    const phone = normalizePhone(document.getElementById('store-modal-phone').value.trim());
+    const address = document.getElementById('store-modal-address').value.trim();
+    if (!name || !phone || !address) { alert('Nhập đủ tên, SĐT, địa chỉ nhé.'); return; }
+    try {
+      if (id) {
+        await setDoc(doc(db, "stores", id), { name, category, ownerName, phone, address, updatedAt: serverTimestamp() }, { merge: true });
+      } else {
+        const settingsSnap = await getDoc(doc(db, "settings", "general"));
+        const defaultCommission = (settingsSnap.exists() && settingsSnap.data().defaultStoreCommissionPercent) || 15;
+        await addDoc(collection(db, "stores"), {
+          name, category, ownerName, phone, address,
+          passwordHash: '', status: 'approved', commissionPercent: defaultCommission,
+          createdAt: serverTimestamp()
+        });
+      }
+      closeStoreModal();
+      alert('Đã lưu cửa hàng!');
+    } catch (err) { console.error(err); alert('Có lỗi khi lưu.'); }
+  };
+  window.confirmDeleteStore = function(storeId){
+    if (!confirm('Xóa hẳn cửa hàng này khỏi hệ thống? Không thể hoàn tác.')) return;
+    deleteDoc(doc(db, "stores", storeId)).catch((err) => { console.error(err); alert('Có lỗi khi xóa.'); });
+  };
+  window.deleteStoreFromAdmin = function(){
+    const id = document.getElementById('store-modal-id').value;
+    if (!id) return;
+    if (!confirm('Xóa hẳn cửa hàng này khỏi hệ thống? Không thể hoàn tác.')) return;
+    deleteDoc(doc(db, "stores", id)).then(() => closeStoreModal()).catch((err) => { console.error(err); alert('Có lỗi khi xóa.'); });
   };
 
   /* ---------- ĐƠN ĐỒ ĂN ---------- */
@@ -1822,6 +1922,10 @@
         '<div style="font-size:10.5px;font-weight:800;padding:4px 10px;border-radius:100px;white-space:nowrap;background:rgba(255,255,255,0.06);color:' + statusColorMap[status] + ';">' + statusLabelMap[status] + '</div></div>' +
         '<div class="card-route">📍 ' + escapeHtml(c.address || '') + '</div>' +
         '<div class="card-actions">' + actions + '</div>' +
+        '<div class="card-actions">' +
+        '<button class="btn-tiny ghost" onclick="openClinicModal(\'' + c.id + '\')">✏️ Sửa</button>' +
+        '<button class="btn-tiny red" onclick="confirmDeleteClinic(\'' + c.id + '\')">🗑 Xóa</button>' +
+        '</div>' +
         '</div>';
     });
     container.innerHTML = html;
@@ -1834,6 +1938,50 @@
     if (!confirm('Xác nhận từ chối/khóa phòng khám này?')) return;
     try { await setDoc(doc(db, "clinics", clinicId), { status: 'rejected', updatedAt: serverTimestamp() }, { merge: true }); }
     catch (err) { console.error(err); alert('Có lỗi khi từ chối.'); }
+  };
+
+  window.openClinicModal = function(clinicId){
+    const clinic = clinicId ? clinicsCache.find(c => c.id === clinicId) : null;
+    document.getElementById('clinic-modal-title').textContent = clinic ? 'Sửa phòng khám' : 'Thêm phòng khám mới';
+    document.getElementById('clinic-modal-id').value = clinic ? clinic.id : '';
+    document.getElementById('clinic-modal-name').value = clinic ? (clinic.name || '') : '';
+    document.getElementById('clinic-modal-owner').value = clinic ? (clinic.ownerName || '') : '';
+    document.getElementById('clinic-modal-phone').value = clinic ? (clinic.phone || '') : '';
+    document.getElementById('clinic-modal-address').value = clinic ? (clinic.address || '') : '';
+    document.getElementById('clinic-modal-delete-btn').style.display = clinic ? 'inline-block' : 'none';
+    document.getElementById('clinic-modal').style.display = 'flex';
+  };
+  window.closeClinicModal = function(){
+    document.getElementById('clinic-modal').style.display = 'none';
+  };
+  window.saveClinicFromAdmin = async function(){
+    const id = document.getElementById('clinic-modal-id').value;
+    const name = document.getElementById('clinic-modal-name').value.trim();
+    const ownerName = document.getElementById('clinic-modal-owner').value.trim();
+    const phone = normalizePhone(document.getElementById('clinic-modal-phone').value.trim());
+    const address = document.getElementById('clinic-modal-address').value.trim();
+    if (!name || !phone || !address) { alert('Nhập đủ tên, SĐT, địa chỉ nhé.'); return; }
+    try {
+      if (id) {
+        await setDoc(doc(db, "clinics", id), { name, ownerName, phone, address, updatedAt: serverTimestamp() }, { merge: true });
+      } else {
+        await addDoc(collection(db, "clinics"), {
+          name, ownerName, phone, address, passwordHash: '', status: 'approved', createdAt: serverTimestamp()
+        });
+      }
+      closeClinicModal();
+      alert('Đã lưu phòng khám!');
+    } catch (err) { console.error(err); alert('Có lỗi khi lưu.'); }
+  };
+  window.confirmDeleteClinic = function(clinicId){
+    if (!confirm('Xóa hẳn phòng khám này khỏi hệ thống? Không thể hoàn tác.')) return;
+    deleteDoc(doc(db, "clinics", clinicId)).catch((err) => { console.error(err); alert('Có lỗi khi xóa.'); });
+  };
+  window.deleteClinicFromAdmin = function(){
+    const id = document.getElementById('clinic-modal-id').value;
+    if (!id) return;
+    if (!confirm('Xóa hẳn phòng khám này khỏi hệ thống? Không thể hoàn tác.')) return;
+    deleteDoc(doc(db, "clinics", id)).then(() => closeClinicModal()).catch((err) => { console.error(err); alert('Có lỗi khi xóa.'); });
   };
 
   /* ---------- BẢO HIỂM ---------- */

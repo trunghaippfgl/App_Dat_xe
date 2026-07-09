@@ -310,9 +310,12 @@
         errEl.textContent = 'Không tìm thấy phòng khám với số này.'; errEl.style.display = 'block';
       } else {
         const enteredHash = await hashText(password);
-        if (clinic.passwordHash !== enteredHash) {
+        if (clinic.passwordHash && clinic.passwordHash !== enteredHash) {
           errEl.textContent = 'Sai mật khẩu. Thử lại nhé.'; errEl.style.display = 'block';
         } else {
+          if (!clinic.passwordHash) {
+            await window.updateClinicProfile(clinic.id, { passwordHash: enteredHash });
+          }
           currentClinicId = clinic.id;
           localStorage.setItem('xn_clinic_id', clinic.id);
           showAppRoot(clinic);
