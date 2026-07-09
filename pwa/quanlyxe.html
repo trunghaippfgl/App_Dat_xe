@@ -390,6 +390,8 @@
     <div style="background:var(--surface-800); border:1px solid var(--border-steel); border-radius:16px; padding:20px; width:100%; max-width:400px; max-height:88vh; overflow-y:auto;">
       <div style="font-size:15px; font-weight:700; margin-bottom:14px;" id="ent-modal-title">Thêm địa điểm</div>
       <input type="hidden" id="ent-id">
+      <div id="ent-photo-picker" onclick="document.getElementById('ent-photo-input').click()" style="width:100%;height:130px;border-radius:12px;background:var(--bg-asphalt-900);border:1px dashed var(--border-steel);display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer;margin-bottom:14px;background-size:cover;background-position:center;color:var(--text-dim);">📷 Ảnh đại diện</div>
+      <input type="file" id="ent-photo-input" accept="image/*" style="display:none;" onchange="handleEntertainmentPhoto(this)">
       <div style="margin-bottom:10px;">
         <input type="text" id="ent-name" placeholder="Tên địa điểm" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;">
       </div>
@@ -1833,9 +1835,13 @@
     emptyEl.style.display = 'none';
     let html = '';
     rows.forEach((e) => {
+      const thumb = e.photoBase64
+        ? '<div style="width:52px;height:52px;border-radius:10px;background-image:url(' + e.photoBase64 + ');background-size:cover;background-position:center;flex-shrink:0;margin-right:10px;"></div>'
+        : '<div style="width:52px;height:52px;border-radius:10px;background:var(--surface-700);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;margin-right:10px;">📍</div>';
       html += '<div class="card">' +
-        '<div class="card-top"><div><div class="card-name">' + escapeHtml(e.name || '') + '</div>' +
-        '<div class="card-time">' + escapeHtml(e.category || '') + ' · ' + escapeHtml(e.phone || '') + '</div></div></div>' +
+        '<div class="card-top"><div style="display:flex;align-items:center;flex:1;min-width:0;">' + thumb +
+        '<div style="min-width:0;"><div class="card-name">' + escapeHtml(e.name || '') + '</div>' +
+        '<div class="card-time">' + escapeHtml(e.category || '') + ' · ' + escapeHtml(e.phone || '') + '</div></div></div></div>' +
         '<div class="card-route">📍 ' + escapeHtml(e.address || '') + '</div>' +
         (e.description ? '<div style="font-size:12.5px;color:var(--text-muted);margin-top:4px;">' + escapeHtml(e.description) + '</div>' : '') +
         '<div class="card-actions"><button class="btn-tiny ghost" onclick="editEntertainment(\'' + e.id + '\')">✏️ Sửa</button></div>' +
@@ -1852,6 +1858,10 @@
     document.getElementById('ent-phone').value = '';
     document.getElementById('ent-desc').value = '';
     document.getElementById('ent-delete-btn').style.display = 'none';
+    pendingEntertainmentPhoto = null;
+    const picker = document.getElementById('ent-photo-picker');
+    picker.style.backgroundImage = 'none';
+    picker.textContent = '📷 Ảnh đại diện';
     document.getElementById('entertainment-modal').style.display = 'flex';
   };
   window.editEntertainment = function(id){
@@ -1865,11 +1875,33 @@
     document.getElementById('ent-phone').value = item.phone || '';
     document.getElementById('ent-desc').value = item.description || '';
     document.getElementById('ent-delete-btn').style.display = 'inline-block';
+    pendingEntertainmentPhoto = null;
+    const picker = document.getElementById('ent-photo-picker');
+    if (item.photoBase64) {
+      picker.style.backgroundImage = 'url(' + item.photoBase64 + ')';
+      picker.textContent = '';
+    } else {
+      picker.style.backgroundImage = 'none';
+      picker.textContent = '📷 Ảnh đại diện';
+    }
     document.getElementById('entertainment-modal').style.display = 'flex';
   };
   window.closeEntertainmentModal = function(){
     document.getElementById('entertainment-modal').style.display = 'none';
   };
+  let pendingEntertainmentPhoto = null;
+  window.handleEntertainmentPhoto = async function(inputEl){
+    const file = inputEl.files && inputEl.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageFile(file, 500, 0.7);
+      pendingEntertainmentPhoto = dataUrl;
+      const picker = document.getElementById('ent-photo-picker');
+      picker.style.backgroundImage = 'url(' + dataUrl + ')';
+      picker.textContent = '';
+    } catch (err) { console.error(err); alert('Có lỗi khi xử lý ảnh, thử lại nhé.'); }
+  };
+
   window.saveEntertainment = async function(){
     const id = document.getElementById('ent-id').value;
     const name = document.getElementById('ent-name').value.trim();
@@ -1880,10 +1912,13 @@
     if (!name || !address) { alert('Nhập đủ tên và địa chỉ nhé.'); return; }
     try {
       if (id) {
-        await setDoc(doc(db, "entertainmentPlaces", id), { name, category, address, phone, description, updatedAt: serverTimestamp() }, { merge: true });
+        const fields = { name, category, address, phone, description, updatedAt: serverTimestamp() };
+        if (pendingEntertainmentPhoto) fields.photoBase64 = pendingEntertainmentPhoto;
+        await setDoc(doc(db, "entertainmentPlaces", id), fields, { merge: true });
       } else {
-        await addDoc(collection(db, "entertainmentPlaces"), { name, category, address, phone, description, createdAt: serverTimestamp() });
+        await addDoc(collection(db, "entertainmentPlaces"), { name, category, address, phone, description, photoBase64: pendingEntertainmentPhoto || '', createdAt: serverTimestamp() });
       }
+      pendingEntertainmentPhoto = null;
       closeEntertainmentModal();
     } catch (err) { console.error(err); alert('Có lỗi khi lưu.'); }
   };

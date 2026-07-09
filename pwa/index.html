@@ -2084,8 +2084,9 @@
     emptyEl.style.display = 'none';
     let html = '';
     stores.forEach((s) => {
+      const avatarStyle = s.photoBase64 ? ' style="width:46px;height:46px;font-size:20px;background-image:url(' + s.photoBase64 + ');background-size:cover;background-position:center;"' : ' style="width:46px;height:46px;font-size:20px;"';
       html += '<div class="driver-list-card" style="cursor:pointer;" onclick="openFoodMenuFromStore(\'' + s.id + '\', \'' + escapeHtml((s.name||'').replace(/'/g,'')) + '\', \'' + escapeHtml((s.address||'').replace(/'/g,'')) + '\')">' +
-        '<div class="avatar" style="width:46px;height:46px;font-size:20px;">🏪</div>' +
+        '<div class="avatar"' + avatarStyle + '>' + (s.photoBase64 ? '' : '🏪') + '</div>' +
         '<div class="driver-list-info"><div class="driver-list-name">' + escapeHtml(s.name || '') + '</div>' +
         '<div class="driver-list-car">' + escapeHtml(s.category || '') + ' · ' + escapeHtml(s.address || '') + '</div></div>' +
         '</div>';
@@ -2317,7 +2318,9 @@
     emptyEl.style.display = 'none';
     let html = '';
     rows.forEach((e) => {
+      const photoBlock = e.photoBase64 ? '<div style="width:100%;height:120px;border-radius:10px;background-image:url(' + e.photoBase64 + ');background-size:cover;background-position:center;margin-bottom:8px;"></div>' : '';
       html += '<div class="card" style="margin-bottom:10px;">' +
+        photoBlock +
         '<div class="card-name">' + escapeHtml(e.name || '') + '</div>' +
         '<div class="card-sub">' + escapeHtml(e.category || '') + ' · ' + escapeHtml(e.address || '') + '</div>' +
         (e.description ? '<div class="card-sub" style="margin-top:4px;">' + escapeHtml(e.description) + '</div>' : '') +
@@ -2350,8 +2353,9 @@
     emptyEl.style.display = 'none';
     let html = '';
     clinicsBrowseCache.forEach((c) => {
+      const avatarStyle = c.photoBase64 ? ' style="width:46px;height:46px;font-size:20px;background-image:url(' + c.photoBase64 + ');background-size:cover;background-position:center;"' : ' style="width:46px;height:46px;font-size:20px;"';
       html += '<div class="driver-list-card" style="cursor:pointer;" onclick="openBookAppointment(\'' + c.id + '\', \'' + escapeHtml((c.name||'').replace(/'/g,'')) + '\')">' +
-        '<div class="avatar" style="width:46px;height:46px;font-size:20px;">🏥</div>' +
+        '<div class="avatar"' + avatarStyle + '>' + (c.photoBase64 ? '' : '🏥') + '</div>' +
         '<div class="driver-list-info"><div class="driver-list-name">' + escapeHtml(c.name || '') + '</div>' +
         '<div class="driver-list-car">' + escapeHtml(c.address || '') + '</div></div>' +
         '</div>';

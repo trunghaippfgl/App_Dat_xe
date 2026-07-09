@@ -245,6 +245,8 @@
     <div class="scroll">
       <div class="card">
         <div class="card-name" style="margin-bottom:10px;">Thông tin cửa hàng</div>
+        <div id="settings-store-photo-picker" onclick="document.getElementById('settings-store-photo-input').click()" style="width:100%;height:130px;border-radius:12px;background:var(--bg-asphalt-900);border:1px dashed var(--border-steel);display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer;margin-bottom:14px;background-size:cover;background-position:center;color:var(--text-dim);">📷 Ảnh đại diện cửa hàng</div>
+        <input type="file" id="settings-store-photo-input" accept="image/*" style="display:none;" onchange="handleStorePhoto(this)">
         <div class="field">
           <span class="field-label">Tên cửa hàng</span>
           <input type="text" id="settings-store-name" class="native-input">
@@ -366,6 +368,14 @@
     document.getElementById('settings-store-name').value = store.name || '';
     document.getElementById('settings-store-address').value = store.address || '';
     document.getElementById('settings-commission-display').textContent = (store.commissionPercent || 0) + '%';
+    const photoPicker = document.getElementById('settings-store-photo-picker');
+    if (store.photoBase64) {
+      photoPicker.style.backgroundImage = 'url(' + store.photoBase64 + ')';
+      photoPicker.textContent = '';
+    } else {
+      photoPicker.style.backgroundImage = 'none';
+      photoPicker.textContent = '📷 Ảnh đại diện cửa hàng';
+    }
     if (window.listenForMenuItems) window.listenForMenuItems(currentStoreId);
     if (window.listenForStoreOrders) window.listenForStoreOrders(currentStoreId);
     if (window.autoRestoreNotifications) window.autoRestoreNotifications();
@@ -656,13 +666,29 @@
   }
 
   /* ---------- SETTINGS ---------- */
+  let pendingStorePhotoBase64 = null;
+  async function handleStorePhoto(inputEl){
+    const file = inputEl.files && inputEl.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageFile(file, 500, 0.7);
+      pendingStorePhotoBase64 = dataUrl;
+      const picker = document.getElementById('settings-store-photo-picker');
+      picker.style.backgroundImage = 'url(' + dataUrl + ')';
+      picker.textContent = '';
+    } catch (err) { console.error(err); alert('Có lỗi khi xử lý ảnh, thử lại nhé.'); }
+  }
+
   async function saveStoreProfile(){
     const name = document.getElementById('settings-store-name').value.trim();
     const address = document.getElementById('settings-store-address').value.trim();
     if (!name || !address) { alert('Nhập đủ tên và địa chỉ nhé.'); return; }
+    const fields = { name, address };
+    if (pendingStorePhotoBase64) fields.photoBase64 = pendingStorePhotoBase64;
     try {
-      await window.updateStoreProfile(currentStoreId, { name, address });
+      await window.updateStoreProfile(currentStoreId, fields);
       document.getElementById('store-name-header').textContent = name;
+      pendingStorePhotoBase64 = null;
       alert('Đã lưu thay đổi!');
     } catch (err) { console.error(err); alert('Có lỗi khi lưu.'); }
   }
