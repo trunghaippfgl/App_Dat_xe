@@ -126,6 +126,7 @@
     <div class="tab-btn" id="tab-rides" onclick="switchTab('rides')">Chuyến xe</div>
     <div class="tab-btn" id="tab-mine" onclick="switchTab('mine')">Đơn của tôi</div>
     <div class="tab-btn" id="tab-earnings" onclick="switchTab('earnings')">Thu nhập</div>
+    <div class="tab-btn" id="tab-insurance" onclick="switchTab('insurance'); if(window.loadInsurancePlans) loadInsurancePlans();">🛡️ Bảo hiểm</div>
     <div class="tab-btn" id="tab-settings" onclick="switchTab('settings')">Cài đặt</div>
   </div>
 
@@ -172,6 +173,17 @@
   </div>
 
   <!-- SETTINGS PANEL -->
+  <!-- INSURANCE PANEL -->
+  <div class="panel" id="panel-insurance">
+    <div class="scroll">
+      <div id="insurance-plans-browse-list"></div>
+      <div class="empty-state" id="insurance-plans-empty" style="display:none;">Chưa có gói bảo hiểm nào.</div>
+      <div class="card-name" style="margin:16px 0 8px;">📋 Yêu cầu của tôi</div>
+      <div id="my-insurance-requests-list"></div>
+      <div class="empty-state" id="my-insurance-requests-empty" style="display:none;">Bạn chưa gửi yêu cầu nào.</div>
+    </div>
+  </div>
+
   <div class="panel" id="panel-settings">
     <div class="scroll">
       <div class="card" style="text-align:center;">
@@ -340,6 +352,68 @@
     try {
       await window.setDriverAccepting(currentDriverId, checked);
     } catch (err) { console.error(err); alert('Có lỗi khi cập nhật trạng thái.'); }
+  }
+
+  /* ---------- BẢO HIỂM ---------- */
+  let insurancePlansBrowseCache = [];
+  async function loadInsurancePlans(){
+    if (window.getInsurancePlans) {
+      try {
+        insurancePlansBrowseCache = await window.getInsurancePlans();
+        renderInsurancePlansBrowse();
+      } catch (err) { console.error(err); }
+    }
+    if (window.listenForMyInsuranceRequests) window.listenForMyInsuranceRequests(currentDriverId);
+  }
+  function renderInsurancePlansBrowse(){
+    const container = document.getElementById('insurance-plans-browse-list');
+    const emptyEl = document.getElementById('insurance-plans-empty');
+    if (insurancePlansBrowseCache.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    insurancePlansBrowseCache.forEach((p) => {
+      html += '<div class="card">' +
+        '<div class="card-top"><div><div class="card-name">' + escapeHtml(p.name || '') + '</div>' +
+        '<div class="card-sub">' + escapeHtml(p.provider || '') + ' · ' + escapeHtml(p.duration || '') + '</div></div>' +
+        '<div style="font-weight:800;color:var(--accent-amber);white-space:nowrap;">' + formatVnd(p.price) + '</div></div>' +
+        '<div class="card-sub" style="margin-bottom:8px;">' + escapeHtml(p.coverage || '') + '</div>' +
+        '<div class="card-actions"><button class="btn-tiny" style="width:100%;" onclick="requestInsurance(\'' + p.id + '\', \'' + escapeHtml((p.name||'').replace(/\'/g,'')) + '\')">Đăng ký quan tâm</button></div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+  async function requestInsurance(planId, planName){
+    if (!confirm('Gửi yêu cầu quan tâm gói "' + planName + '"? Admin sẽ liên hệ bạn để tư vấn thêm.')) return;
+    if (window.submitInsuranceRequest) {
+      try {
+        await window.submitInsuranceRequest(currentDriverId, currentDriverData, planId, planName);
+        alert('Đã gửi yêu cầu! Admin sẽ liên hệ bạn sớm.');
+      } catch (err) { console.error(err); alert('Có lỗi khi gửi yêu cầu.'); }
+    }
+  }
+  function insuranceReqStatusLabel(status){
+    const map = { pending: 'Chờ liên hệ', contacted: 'Đã liên hệ', purchased: 'Đã mua' };
+    return map[status] || status;
+  }
+  function renderMyInsuranceRequests(requests){
+    const container = document.getElementById('my-insurance-requests-list');
+    const emptyEl = document.getElementById('my-insurance-requests-empty');
+    if (!requests || requests.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    requests.forEach((r) => {
+      html += '<div class="card"><div class="item-row"><div class="card-name">' + escapeHtml(r.planName || '') + '</div>' +
+        '<div class="status-badge ready">' + insuranceReqStatusLabel(r.status) + '</div></div></div>';
+    });
+    container.innerHTML = html;
   }
 
   /* ---------- CHUYẾN XE ---------- */
@@ -593,6 +667,32 @@
     else if (!digits.startsWith('0')) digits = '0' + digits;
     return digits;
   }
+
+  window.getInsurancePlans = async function(){
+    const snap = await getDocs(collection(db, "insurancePlans"));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+
+  window.submitInsuranceRequest = async function(driverId, driverData, planId, planName){
+    await addDoc(collection(db, "insuranceRequests"), {
+      driverId: driverId,
+      driverName: (driverData && driverData.name) || '',
+      driverPhone: (driverData && driverData.phone) || '',
+      planId: planId,
+      planName: planName,
+      status: 'pending',
+      createdAt: serverTimestamp()
+    });
+  };
+
+  window.listenForMyInsuranceRequests = function(driverId){
+    const q = query(collection(db, "insuranceRequests"), where("driverId", "==", driverId));
+    onSnapshot(q, (snap) => {
+      const requests = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (window.renderMyInsuranceRequests) window.renderMyInsuranceRequests(requests);
+    });
+  };
+  window.renderMyInsuranceRequests = renderMyInsuranceRequests;
 
   window.findDriverByPhone = async function(phone){
     const target = normalizePhoneModule(phone);

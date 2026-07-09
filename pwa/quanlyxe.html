@@ -175,6 +175,8 @@
     <div class="tab-btn" id="tab-chat" onclick="switchTab('chat'); if(window.renderChatConversationList) renderChatConversationList();">Trò chuyện</div>
     <div class="tab-btn" id="tab-drivers" onclick="switchTab('drivers')">Tài xế</div>
     <div class="tab-btn" id="tab-stores" onclick="switchTab('stores'); if(window.renderStoresList) renderStoresList();">Cửa hàng</div>
+    <div class="tab-btn" id="tab-entertainment" onclick="switchTab('entertainment')">Giải trí</div>
+    <div class="tab-btn" id="tab-clinics" onclick="switchTab('clinics'); if(window.renderClinicsList) renderClinicsList();">Phòng khám</div>
     <div class="tab-btn" id="tab-settings" onclick="switchTab('settings')">Cài đặt</div>
   </div>
 
@@ -253,20 +255,45 @@
 
   <!-- DRIVERS PANEL -->
   <div class="panel" id="panel-drivers">
+    <div style="display:flex; gap:8px; padding:12px 16px; border-bottom:1px solid var(--border-steel); flex-shrink:0;">
+      <div class="chip on" data-driverview="drivers" onclick="setDriverPanelView('drivers')">Tài xế</div>
+      <div class="chip" data-driverview="insurance" onclick="setDriverPanelView('insurance')">🛡️ Bảo hiểm</div>
+    </div>
     <div class="scroll">
-      <div class="card">
-        <div class="card-name" style="margin-bottom:10px;">💳 Gói phí thành viên tài xế</div>
-        <div id="membership-plans-list" style="margin-bottom:10px;"></div>
-        <div class="card-actions" style="flex-wrap:wrap;">
-          <input type="text" id="new-plan-name" placeholder="Tên gói (VD: 1 tháng)" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:8px;flex:1;min-width:100px;">
-          <input type="text" id="new-plan-days" placeholder="Số ngày" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:8px;width:80px;">
-          <input type="text" id="new-plan-price" placeholder="Giá (VNĐ)" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:8px;width:100px;">
+      <div id="driver-sub-drivers">
+        <div class="card">
+          <div class="card-name" style="margin-bottom:10px;">💳 Gói phí thành viên tài xế</div>
+          <div id="membership-plans-list" style="margin-bottom:10px;"></div>
+          <div class="card-actions" style="flex-wrap:wrap;">
+            <input type="text" id="new-plan-name" placeholder="Tên gói (VD: 1 tháng)" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:8px;flex:1;min-width:100px;">
+            <input type="text" id="new-plan-days" placeholder="Số ngày" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:8px;width:80px;">
+            <input type="text" id="new-plan-price" placeholder="Giá (VNĐ)" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:8px;width:100px;">
+          </div>
+          <button class="btn-tiny" style="margin-top:8px;" onclick="addMembershipPlan()">+ Thêm gói</button>
         </div>
-        <button class="btn-tiny" style="margin-top:8px;" onclick="addMembershipPlan()">+ Thêm gói</button>
+        <button class="btn-tiny" style="margin-bottom:12px;" onclick="addDriverFromAdmin()">+ Thêm tài xế mới</button>
+        <div id="drivers-list"></div>
+        <div class="empty-state" id="drivers-empty" style="display:none;">Chưa có tài xế nào đăng ký. Gửi link trang đăng ký tài xế cho họ nhé.</div>
       </div>
-      <button class="btn-tiny" style="margin-bottom:12px;" onclick="addDriverFromAdmin()">+ Thêm tài xế mới</button>
-      <div id="drivers-list"></div>
-      <div class="empty-state" id="drivers-empty" style="display:none;">Chưa có tài xế nào đăng ký. Gửi link trang đăng ký tài xế cho họ nhé.</div>
+      <div id="driver-sub-insurance" style="display:none;">
+        <div class="card">
+          <div class="card-name" style="margin-bottom:10px;">🛡️ Gói bảo hiểm xe</div>
+          <div id="insurance-plans-list" style="margin-bottom:10px;"></div>
+          <div class="card-actions" style="flex-wrap:wrap;">
+            <input type="text" id="new-ins-name" placeholder="Tên gói" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:8px;flex:1;min-width:100px;">
+            <input type="text" id="new-ins-provider" placeholder="Nhà cung cấp" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:8px;flex:1;min-width:100px;">
+          </div>
+          <div class="card-actions" style="flex-wrap:wrap; margin-top:8px;">
+            <input type="text" id="new-ins-coverage" placeholder="Quyền lợi (VD: TNDS + tai nạn)" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:8px;flex:1;min-width:100px;">
+            <input type="text" id="new-ins-price" placeholder="Giá (VNĐ)" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:8px;width:100px;">
+            <input type="text" id="new-ins-duration" placeholder="Thời hạn (VD: 1 năm)" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:8px;width:100px;">
+          </div>
+          <button class="btn-tiny" style="margin-top:8px;" onclick="addInsurancePlan()">+ Thêm gói bảo hiểm</button>
+        </div>
+        <div class="card-name" style="margin-bottom:8px;">📋 Yêu cầu mua bảo hiểm từ tài xế</div>
+        <div id="insurance-requests-list"></div>
+        <div class="empty-state" id="insurance-requests-empty" style="display:none;">Chưa có yêu cầu nào.</div>
+      </div>
     </div>
   </div>
 
@@ -278,6 +305,68 @@
       <div class="card-actions">
         <button class="btn-tiny ghost" onclick="closeRenewModal()">Hủy</button>
         <button class="btn-tiny" onclick="confirmRenewMembership()">Đã thu tiền, Gia hạn</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ENTERTAINMENT PANEL -->
+  <div class="panel" id="panel-entertainment" style="position:relative;">
+    <div class="scroll">
+      <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+        <div class="chip on" data-entcat="all" onclick="setEntertainmentFilter('all')">Tất cả</div>
+        <div class="chip" data-entcat="Cafe" onclick="setEntertainmentFilter('Cafe')">Cafe</div>
+        <div class="chip" data-entcat="Karaoke" onclick="setEntertainmentFilter('Karaoke')">Karaoke</div>
+        <div class="chip" data-entcat="Massage/Vật lý trị liệu" onclick="setEntertainmentFilter('Massage/Vật lý trị liệu')">Massage/VLTL</div>
+      </div>
+      <div id="entertainment-list"></div>
+      <div class="empty-state" id="entertainment-empty" style="display:none;">Chưa có địa điểm nào. Bấm nút + để thêm.</div>
+    </div>
+    <button class="fab" onclick="openEntertainmentModal()">+</button>
+  </div>
+
+  <!-- CLINICS PANEL -->
+  <div class="panel" id="panel-clinics">
+    <div class="scroll">
+      <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+        <div class="chip on" data-clinicfilter="pending" onclick="setClinicFilter('pending')">Chờ duyệt</div>
+        <div class="chip" data-clinicfilter="approved" onclick="setClinicFilter('approved')">Đã duyệt</div>
+        <div class="chip" data-clinicfilter="rejected" onclick="setClinicFilter('rejected')">Đã từ chối</div>
+        <div class="chip" data-clinicfilter="all" onclick="setClinicFilter('all')">Tất cả</div>
+      </div>
+      <div id="clinics-list"></div>
+      <div class="empty-state" id="clinics-empty" style="display:none;">Chưa có phòng khám nào đăng ký.</div>
+    </div>
+  </div>
+
+  <!-- ENTERTAINMENT MODAL -->
+  <div id="entertainment-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--surface-800); border:1px solid var(--border-steel); border-radius:16px; padding:20px; width:100%; max-width:400px; max-height:88vh; overflow-y:auto;">
+      <div style="font-size:15px; font-weight:700; margin-bottom:14px;" id="ent-modal-title">Thêm địa điểm</div>
+      <input type="hidden" id="ent-id">
+      <div style="margin-bottom:10px;">
+        <input type="text" id="ent-name" placeholder="Tên địa điểm" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;">
+      </div>
+      <div style="margin-bottom:10px;">
+        <select id="ent-category" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;font-family:inherit;">
+          <option value="Cafe">Cafe</option>
+          <option value="Karaoke">Karaoke</option>
+          <option value="Massage/Vật lý trị liệu">Massage/Vật lý trị liệu</option>
+          <option value="Khác">Khác</option>
+        </select>
+      </div>
+      <div style="margin-bottom:10px;">
+        <input type="text" id="ent-address" placeholder="Địa chỉ" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;">
+      </div>
+      <div style="margin-bottom:10px;">
+        <input type="text" id="ent-phone" placeholder="Số điện thoại liên hệ" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;">
+      </div>
+      <div style="margin-bottom:10px;">
+        <input type="text" id="ent-desc" placeholder="Mô tả ngắn (tuỳ chọn)" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;">
+      </div>
+      <div class="card-actions">
+        <button class="btn-tiny ghost" onclick="closeEntertainmentModal()">Hủy</button>
+        <button class="btn-tiny" onclick="saveEntertainment()">Lưu</button>
+        <button class="btn-tiny red" id="ent-delete-btn" style="display:none;" onclick="deleteEntertainment()">Xóa</button>
       </div>
     </div>
   </div>
@@ -1601,9 +1690,255 @@
   listenForAllVouchers();
   listenForDrivers();
   listenForCustomers();
+  /* ---------- GIẢI TRÍ ---------- */
+  let entertainmentCache = [];
+  let entertainmentFilter = 'all';
+  function listenForEntertainment(){
+    onSnapshot(collection(db, "entertainmentPlaces"), (snap) => {
+      entertainmentCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderEntertainmentList();
+    });
+  }
+  window.setEntertainmentFilter = function(cat){
+    entertainmentFilter = cat;
+    document.querySelectorAll('[data-entcat]').forEach(c => c.classList.toggle('on', c.dataset.entcat === cat));
+    renderEntertainmentList();
+  };
+  function renderEntertainmentList(){
+    const container = document.getElementById('entertainment-list');
+    const emptyEl = document.getElementById('entertainment-empty');
+    const rows = entertainmentFilter === 'all' ? entertainmentCache : entertainmentCache.filter(e => e.category === entertainmentFilter);
+    if (rows.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    rows.forEach((e) => {
+      html += '<div class="card">' +
+        '<div class="card-top"><div><div class="card-name">' + escapeHtml(e.name || '') + '</div>' +
+        '<div class="card-time">' + escapeHtml(e.category || '') + ' · ' + escapeHtml(e.phone || '') + '</div></div></div>' +
+        '<div class="card-route">📍 ' + escapeHtml(e.address || '') + '</div>' +
+        (e.description ? '<div style="font-size:12.5px;color:var(--text-muted);margin-top:4px;">' + escapeHtml(e.description) + '</div>' : '') +
+        '<div class="card-actions"><button class="btn-tiny ghost" onclick="editEntertainment(\'' + e.id + '\')">✏️ Sửa</button></div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+  window.openEntertainmentModal = function(){
+    document.getElementById('ent-modal-title').textContent = 'Thêm địa điểm';
+    document.getElementById('ent-id').value = '';
+    document.getElementById('ent-name').value = '';
+    document.getElementById('ent-category').value = 'Cafe';
+    document.getElementById('ent-address').value = '';
+    document.getElementById('ent-phone').value = '';
+    document.getElementById('ent-desc').value = '';
+    document.getElementById('ent-delete-btn').style.display = 'none';
+    document.getElementById('entertainment-modal').style.display = 'flex';
+  };
+  window.editEntertainment = function(id){
+    const item = entertainmentCache.find(e => e.id === id);
+    if (!item) return;
+    document.getElementById('ent-modal-title').textContent = 'Sửa địa điểm';
+    document.getElementById('ent-id').value = item.id;
+    document.getElementById('ent-name').value = item.name || '';
+    document.getElementById('ent-category').value = item.category || 'Cafe';
+    document.getElementById('ent-address').value = item.address || '';
+    document.getElementById('ent-phone').value = item.phone || '';
+    document.getElementById('ent-desc').value = item.description || '';
+    document.getElementById('ent-delete-btn').style.display = 'inline-block';
+    document.getElementById('entertainment-modal').style.display = 'flex';
+  };
+  window.closeEntertainmentModal = function(){
+    document.getElementById('entertainment-modal').style.display = 'none';
+  };
+  window.saveEntertainment = async function(){
+    const id = document.getElementById('ent-id').value;
+    const name = document.getElementById('ent-name').value.trim();
+    const category = document.getElementById('ent-category').value;
+    const address = document.getElementById('ent-address').value.trim();
+    const phone = document.getElementById('ent-phone').value.trim();
+    const description = document.getElementById('ent-desc').value.trim();
+    if (!name || !address) { alert('Nhập đủ tên và địa chỉ nhé.'); return; }
+    try {
+      if (id) {
+        await setDoc(doc(db, "entertainmentPlaces", id), { name, category, address, phone, description, updatedAt: serverTimestamp() }, { merge: true });
+      } else {
+        await addDoc(collection(db, "entertainmentPlaces"), { name, category, address, phone, description, createdAt: serverTimestamp() });
+      }
+      closeEntertainmentModal();
+    } catch (err) { console.error(err); alert('Có lỗi khi lưu.'); }
+  };
+  window.deleteEntertainment = async function(){
+    const id = document.getElementById('ent-id').value;
+    if (!id || !confirm('Xóa địa điểm này?')) return;
+    try { await deleteDoc(doc(db, "entertainmentPlaces", id)); closeEntertainmentModal(); }
+    catch (err) { console.error(err); alert('Có lỗi khi xóa.'); }
+  };
+
+  /* ---------- PHÒNG KHÁM ---------- */
+  let clinicsCache = [];
+  let clinicFilter = 'pending';
+  function listenForClinics(){
+    onSnapshot(collection(db, "clinics"), (snap) => {
+      clinicsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderClinicsList();
+    });
+  }
+  window.setClinicFilter = function(filter){
+    clinicFilter = filter;
+    document.querySelectorAll('[data-clinicfilter]').forEach(c => c.classList.toggle('on', c.dataset.clinicfilter === filter));
+    renderClinicsList();
+  };
+  window.renderClinicsList = function(){
+    const container = document.getElementById('clinics-list');
+    const emptyEl = document.getElementById('clinics-empty');
+    if (!container) return;
+    const rows = clinicFilter === 'all' ? clinicsCache : clinicsCache.filter(c => (c.status || 'pending') === clinicFilter);
+    if (rows.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    rows.forEach((c) => {
+      const status = c.status || 'pending';
+      const statusLabelMap = { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Đã từ chối' };
+      const statusColorMap = { pending: 'var(--accent-amber)', approved: 'var(--route-green)', rejected: 'var(--alert-red)' };
+      let actions = '';
+      if (status === 'pending') {
+        actions = '<button class="btn-tiny" onclick="approveClinic(\'' + c.id + '\')">✓ Duyệt</button>' +
+          '<button class="btn-tiny red" onclick="rejectClinic(\'' + c.id + '\')">Từ chối</button>';
+      } else if (status === 'approved') {
+        actions = '<button class="btn-tiny red" onclick="rejectClinic(\'' + c.id + '\')">Khóa phòng khám</button>';
+      } else if (status === 'rejected') {
+        actions = '<button class="btn-tiny" onclick="approveClinic(\'' + c.id + '\')">✓ Duyệt lại</button>';
+      }
+      html += '<div class="card">' +
+        '<div class="card-top"><div><div class="card-name">' + escapeHtml(c.name || '') + '</div>' +
+        '<div class="card-time">' + escapeHtml(c.ownerName || '') + ' · ' + escapeHtml(c.phone || '') + '</div></div>' +
+        '<div style="font-size:10.5px;font-weight:800;padding:4px 10px;border-radius:100px;white-space:nowrap;background:rgba(255,255,255,0.06);color:' + statusColorMap[status] + ';">' + statusLabelMap[status] + '</div></div>' +
+        '<div class="card-route">📍 ' + escapeHtml(c.address || '') + '</div>' +
+        '<div class="card-actions">' + actions + '</div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  };
+  window.approveClinic = async function(clinicId){
+    try { await setDoc(doc(db, "clinics", clinicId), { status: 'approved', updatedAt: serverTimestamp() }, { merge: true }); }
+    catch (err) { console.error(err); alert('Có lỗi khi duyệt.'); }
+  };
+  window.rejectClinic = async function(clinicId){
+    if (!confirm('Xác nhận từ chối/khóa phòng khám này?')) return;
+    try { await setDoc(doc(db, "clinics", clinicId), { status: 'rejected', updatedAt: serverTimestamp() }, { merge: true }); }
+    catch (err) { console.error(err); alert('Có lỗi khi từ chối.'); }
+  };
+
+  /* ---------- BẢO HIỂM ---------- */
+  window.setDriverPanelView = function(view){
+    document.querySelectorAll('[data-driverview]').forEach(c => c.classList.toggle('on', c.dataset.driverview === view));
+    document.getElementById('driver-sub-drivers').style.display = view === 'drivers' ? 'block' : 'none';
+    document.getElementById('driver-sub-insurance').style.display = view === 'insurance' ? 'block' : 'none';
+  };
+  let insurancePlansCache = [];
+  function listenForInsurancePlans(){
+    onSnapshot(collection(db, "insurancePlans"), (snap) => {
+      insurancePlansCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderInsurancePlansList();
+    });
+  }
+  function renderInsurancePlansList(){
+    const container = document.getElementById('insurance-plans-list');
+    if (!container) return;
+    if (insurancePlansCache.length === 0) {
+      container.innerHTML = '<div style="font-size:12.5px;color:var(--text-muted);">Chưa có gói nào.</div>';
+      return;
+    }
+    let html = '';
+    insurancePlansCache.forEach((p) => {
+      html += '<div style="padding:8px 0;border-bottom:1px solid var(--border-steel);">' +
+        '<div class="item-row"><b>' + escapeHtml(p.name || '') + '</b> — ' + formatVnd(p.price) + '</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(p.provider || '') + ' · ' + escapeHtml(p.coverage || '') + ' · ' + escapeHtml(p.duration || '') + '</div>' +
+        '<button class="btn-tiny red" style="margin-top:6px;" onclick="deleteInsurancePlan(\'' + p.id + '\')">Xóa</button>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+  window.addInsurancePlan = async function(){
+    const name = document.getElementById('new-ins-name').value.trim();
+    const provider = document.getElementById('new-ins-provider').value.trim();
+    const coverage = document.getElementById('new-ins-coverage').value.trim();
+    const price = parsePriceToNumber(document.getElementById('new-ins-price').value.trim());
+    const duration = document.getElementById('new-ins-duration').value.trim();
+    if (!name || !provider || !price) { alert('Nhập đủ tên gói, nhà cung cấp, giá nhé.'); return; }
+    try {
+      await addDoc(collection(db, "insurancePlans"), { name, provider, coverage, price, duration, createdAt: serverTimestamp() });
+      document.getElementById('new-ins-name').value = '';
+      document.getElementById('new-ins-provider').value = '';
+      document.getElementById('new-ins-coverage').value = '';
+      document.getElementById('new-ins-price').value = '';
+      document.getElementById('new-ins-duration').value = '';
+    } catch (err) { console.error(err); alert('Có lỗi khi thêm gói.'); }
+  };
+  window.deleteInsurancePlan = async function(id){
+    if (!confirm('Xóa gói bảo hiểm này?')) return;
+    try { await deleteDoc(doc(db, "insurancePlans", id)); }
+    catch (err) { console.error(err); alert('Có lỗi khi xóa.'); }
+  };
+
+  let insuranceRequestsCache = [];
+  function listenForInsuranceRequests(){
+    onSnapshot(collection(db, "insuranceRequests"), (snap) => {
+      insuranceRequestsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      insuranceRequestsCache.sort((a, b) => {
+        const at = (a.createdAt && a.createdAt.toMillis) ? a.createdAt.toMillis() : 0;
+        const bt = (b.createdAt && b.createdAt.toMillis) ? b.createdAt.toMillis() : 0;
+        return bt - at;
+      });
+      renderInsuranceRequestsList();
+    });
+  }
+  function insuranceReqStatusLabel(status){
+    const map = { pending: 'Chờ liên hệ', contacted: 'Đã liên hệ', purchased: 'Đã mua' };
+    return map[status] || status;
+  }
+  function renderInsuranceRequestsList(){
+    const container = document.getElementById('insurance-requests-list');
+    const emptyEl = document.getElementById('insurance-requests-empty');
+    if (insuranceRequestsCache.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    insuranceRequestsCache.forEach((r) => {
+      html += '<div class="card">' +
+        '<div class="card-top"><div><div class="card-name">' + escapeHtml(r.driverName || '') + '</div>' +
+        '<div class="card-time">' + escapeHtml(r.driverPhone || '') + ' · ' + escapeHtml(r.planName || '') + '</div></div></div>' +
+        '<div class="card-actions">' +
+        '<select onchange="updateInsuranceRequestStatus(\'' + r.id + '\', this.value)" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);font-size:12.5px;padding:8px;">' +
+        '<option value="pending"' + (r.status === 'pending' ? ' selected' : '') + '>Chờ liên hệ</option>' +
+        '<option value="contacted"' + (r.status === 'contacted' ? ' selected' : '') + '>Đã liên hệ</option>' +
+        '<option value="purchased"' + (r.status === 'purchased' ? ' selected' : '') + '>Đã mua</option>' +
+        '</select></div></div>';
+    });
+    container.innerHTML = html;
+  }
+  window.updateInsuranceRequestStatus = async function(id, status){
+    try { await updateDoc(doc(db, "insuranceRequests", id), { status, updatedAt: serverTimestamp() }); }
+    catch (err) { console.error(err); alert('Có lỗi khi cập nhật.'); }
+  };
+
   listenForStores();
   listenForFoodOrders();
   listenForMembershipPlans();
+  listenForEntertainment();
+  listenForClinics();
+  listenForInsurancePlans();
+  listenForInsuranceRequests();
 </script>
 </body>
 </html>

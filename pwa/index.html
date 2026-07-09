@@ -812,6 +812,9 @@
           <div class="menu-list">
             <div class="menu-item" onclick="openSubScreen('screen-vouchers')"><span>🎁 Voucher khuyến mãi <span class="menu-badge" id="voucher-menu-badge" style="display:none;"></span></span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openFoodOrdersScreen()"><span>🍜 Đơn đồ ăn của tôi</span><span class="arrow">›</span></div>
+            <div class="menu-item" onclick="openEntertainmentScreen()"><span>🎉 Giải trí</span><span class="arrow">›</span></div>
+            <div class="menu-item" onclick="openClinicsScreen()"><span>🏥 Sức khỏe</span><span class="arrow">›</span></div>
+            <div class="menu-item" onclick="openMyAppointmentsScreen()"><span>📅 Lịch hẹn khám của tôi</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openSubScreen('screen-favorite-drivers')"><span>Tài xế yêu thích</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openSubScreen('screen-history')"><span>Lịch sử chuyến đi</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openSubScreen('screen-payment-method')"><span>Phương thức thanh toán</span><span class="arrow">›</span></div>
@@ -894,6 +897,78 @@
         <div class="scroll" style="padding-top:14px;">
           <div id="food-orders-list"></div>
           <div class="empty-state" id="food-orders-empty" style="display:none;">Bạn chưa đặt đơn đồ ăn nào.</div>
+        </div>
+      </div>
+
+      <!-- SCREEN: GIẢI TRÍ -->
+      <div class="screen" id="screen-entertainment">
+        <div class="thread-header">
+          <div class="back-btn" onclick="closeThread()">←</div>
+          <div class="thread-title">Giải trí</div>
+        </div>
+        <div class="scroll" style="padding-top:14px;">
+          <div class="quick-chip-row" style="margin-bottom:14px;">
+            <div class="quick-chip on" data-entcat="all" onclick="setEntertainmentCategoryFilter('all')">Tất cả</div>
+            <div class="quick-chip" data-entcat="Cafe" onclick="setEntertainmentCategoryFilter('Cafe')">☕ Cafe</div>
+            <div class="quick-chip" data-entcat="Karaoke" onclick="setEntertainmentCategoryFilter('Karaoke')">🎤 Karaoke</div>
+            <div class="quick-chip" data-entcat="Massage/Vật lý trị liệu" onclick="setEntertainmentCategoryFilter('Massage/Vật lý trị liệu')">💆 Massage/VLTL</div>
+          </div>
+          <div id="entertainment-browse-list"></div>
+          <div class="empty-state" id="entertainment-browse-empty" style="display:none;">Chưa có địa điểm nào trong mục này.</div>
+        </div>
+      </div>
+
+      <!-- SCREEN: SỨC KHỎE - DANH SÁCH PHÒNG KHÁM -->
+      <div class="screen" id="screen-clinics">
+        <div class="thread-header">
+          <div class="back-btn" onclick="closeThread()">←</div>
+          <div class="thread-title">Sức khỏe</div>
+        </div>
+        <div class="scroll" style="padding-top:14px;">
+          <div id="clinics-browse-list"></div>
+          <div class="empty-state" id="clinics-browse-empty" style="display:none;">Chưa có phòng khám nào trên Xe Nhà.</div>
+        </div>
+      </div>
+
+      <!-- SCREEN: ĐẶT LỊCH KHÁM -->
+      <div class="screen" id="screen-book-appointment">
+        <div class="thread-header">
+          <div class="back-btn" onclick="openClinicsScreen()">←</div>
+          <div class="thread-title" id="appointment-clinic-name">Đặt lịch khám</div>
+        </div>
+        <div class="scroll" style="padding-top:14px;">
+          <div class="field">
+            <span class="field-label">Chọn khoa khám *</span>
+            <div class="field-input">
+              <select id="appointment-department-select" class="native-input"></select>
+            </div>
+          </div>
+          <div class="field">
+            <span class="field-label">Ngày mong muốn *</span>
+            <div class="field-input"><input type="date" id="appointment-date-input" class="native-input"></div>
+          </div>
+          <div class="field">
+            <span class="field-label">Giờ mong muốn *</span>
+            <div class="field-input"><input type="time" id="appointment-time-input" class="native-input"></div>
+          </div>
+          <div class="field">
+            <span class="field-label">Ghi chú (tuỳ chọn)</span>
+            <div class="field-input"><input type="text" id="appointment-note-input" class="native-input" placeholder="VD: Triệu chứng, yêu cầu riêng..."></div>
+          </div>
+          <div class="hint-line" style="text-align:left;">Sau khi gửi, phòng khám sẽ gọi lại để xác nhận giờ khám cụ thể.</div>
+          <button class="btn-full" onclick="submitAppointment()">Gửi yêu cầu đặt lịch</button>
+        </div>
+      </div>
+
+      <!-- SCREEN: LỊCH HẸN CỦA TÔI -->
+      <div class="screen" id="screen-my-appointments">
+        <div class="thread-header">
+          <div class="back-btn" onclick="closeThread()">←</div>
+          <div class="thread-title">Lịch hẹn khám của tôi</div>
+        </div>
+        <div class="scroll" style="padding-top:14px;">
+          <div id="my-appointments-list"></div>
+          <div class="empty-state" id="my-appointments-empty" style="display:none;">Bạn chưa đặt lịch khám nào.</div>
         </div>
       </div>
 
@@ -2208,6 +2283,161 @@
     container.innerHTML = html;
   }
 
+  /* ---------- GIẢI TRÍ ---------- */
+  let entertainmentCache = [];
+  let entertainmentCategoryFilter = 'all';
+  async function openEntertainmentScreen(){
+    openSubScreen('screen-entertainment');
+    const ready = await waitForFirebaseReady();
+    if (ready && window.getEntertainmentPlaces) {
+      try {
+        entertainmentCache = await window.getEntertainmentPlaces();
+        renderEntertainmentBrowseList();
+      } catch (err) { console.error(err); }
+    }
+  }
+  function setEntertainmentCategoryFilter(cat){
+    entertainmentCategoryFilter = cat;
+    document.querySelectorAll('[data-entcat]').forEach(c => c.classList.toggle('on', c.dataset.entcat === cat));
+    renderEntertainmentBrowseList();
+  }
+  function renderEntertainmentBrowseList(){
+    const container = document.getElementById('entertainment-browse-list');
+    const emptyEl = document.getElementById('entertainment-browse-empty');
+    const rows = entertainmentCategoryFilter === 'all' ? entertainmentCache : entertainmentCache.filter(e => e.category === entertainmentCategoryFilter);
+    if (rows.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    rows.forEach((e) => {
+      html += '<div class="card" style="margin-bottom:10px;">' +
+        '<div class="card-name">' + escapeHtml(e.name || '') + '</div>' +
+        '<div class="card-sub">' + escapeHtml(e.category || '') + ' · ' + escapeHtml(e.address || '') + '</div>' +
+        (e.description ? '<div class="card-sub" style="margin-top:4px;">' + escapeHtml(e.description) + '</div>' : '') +
+        (e.phone ? '<div class="card-actions"><a href="tel:' + escapeHtml(e.phone) + '" style="text-decoration:none;"><button class="locate-btn" style="width:auto;padding:8px 14px;">📞 Gọi ' + escapeHtml(e.phone) + '</button></a></div>' : '') +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+
+  /* ---------- SỨC KHỎE ---------- */
+  let clinicsBrowseCache = [];
+  async function openClinicsScreen(){
+    openSubScreen('screen-clinics');
+    const ready = await waitForFirebaseReady();
+    if (ready && window.getApprovedClinics) {
+      try {
+        clinicsBrowseCache = await window.getApprovedClinics();
+        renderClinicsBrowseList();
+      } catch (err) { console.error(err); }
+    }
+  }
+  function renderClinicsBrowseList(){
+    const container = document.getElementById('clinics-browse-list');
+    const emptyEl = document.getElementById('clinics-browse-empty');
+    if (clinicsBrowseCache.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    clinicsBrowseCache.forEach((c) => {
+      html += '<div class="driver-list-card" style="cursor:pointer;" onclick="openBookAppointment(\'' + c.id + '\', \'' + escapeHtml((c.name||'').replace(/'/g,'')) + '\')">' +
+        '<div class="avatar" style="width:46px;height:46px;font-size:20px;">🏥</div>' +
+        '<div class="driver-list-info"><div class="driver-list-name">' + escapeHtml(c.name || '') + '</div>' +
+        '<div class="driver-list-car">' + escapeHtml(c.address || '') + '</div></div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+
+  let currentAppointmentClinicId = null;
+  let currentAppointmentClinicName = '';
+  async function openBookAppointment(clinicId, clinicName){
+    currentAppointmentClinicId = clinicId;
+    currentAppointmentClinicName = clinicName;
+    document.getElementById('appointment-clinic-name').textContent = clinicName;
+    document.getElementById('appointment-note-input').value = '';
+    document.getElementById('appointment-date-input').value = '';
+    document.getElementById('appointment-time-input').value = '';
+    openSubScreen('screen-book-appointment');
+    const ready = await waitForFirebaseReady();
+    const selectEl = document.getElementById('appointment-department-select');
+    selectEl.innerHTML = '<option value="">Đang tải danh sách khoa...</option>';
+    if (ready && window.getClinicDepartments) {
+      try {
+        const departments = await window.getClinicDepartments(clinicId);
+        if (departments.length === 0) {
+          selectEl.innerHTML = '<option value="">Chưa chọn khoa cụ thể</option>';
+        } else {
+          selectEl.innerHTML = departments.map(d => '<option value="' + escapeHtml(d.name) + '">' + escapeHtml(d.name) + '</option>').join('');
+        }
+      } catch (err) { console.error(err); selectEl.innerHTML = '<option value="">Chưa chọn khoa cụ thể</option>'; }
+    }
+  }
+
+  async function submitAppointment(){
+    const department = document.getElementById('appointment-department-select').value;
+    const preferredDate = document.getElementById('appointment-date-input').value;
+    const preferredTime = document.getElementById('appointment-time-input').value;
+    const note = document.getElementById('appointment-note-input').value.trim();
+    if (!preferredDate || !preferredTime) { alert('Bạn chọn ngày và giờ mong muốn trước nhé.'); return; }
+    const customerId = localStorage.getItem('xn_customer_id');
+    const customerName = localStorage.getItem('xn_customer_name') || 'Khách';
+    const customerPhone = localStorage.getItem('xn_customer_phone') || '';
+    if (!customerId) { alert('Bạn cần hoàn tất đăng ký trước.'); return; }
+    const ready = await waitForFirebaseReady();
+    if (ready && window.createAppointment) {
+      try {
+        await window.createAppointment({
+          clinicId: currentAppointmentClinicId,
+          clinicName: currentAppointmentClinicName,
+          department, preferredDate, preferredTime, note,
+          customerId, customerName, customerPhone
+        });
+        alert('Đã gửi yêu cầu đặt lịch! Phòng khám sẽ gọi lại để xác nhận giờ khám cụ thể.');
+        openMyAppointmentsScreen();
+      } catch (err) { console.error(err); alert('Có lỗi khi gửi yêu cầu, thử lại nhé.'); }
+    }
+  }
+
+  async function openMyAppointmentsScreen(){
+    openSubScreen('screen-my-appointments');
+    const customerId = localStorage.getItem('xn_customer_id');
+    if (!customerId) return;
+    const ready = await waitForFirebaseReady();
+    if (ready && window.listenForMyAppointments) window.listenForMyAppointments(customerId);
+  }
+  function appointmentStatusLabelCustomer(status){
+    const map = { pending: 'Chờ phòng khám xác nhận', confirmed: 'Đã xác nhận', cancelled: 'Đã hủy' };
+    return map[status] || status;
+  }
+  function renderMyAppointments(appointments){
+    const container = document.getElementById('my-appointments-list');
+    const emptyEl = document.getElementById('my-appointments-empty');
+    if (!appointments || appointments.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    appointments.forEach((a) => {
+      html += '<div class="card" style="margin-bottom:10px;">' +
+        '<div class="item-row" style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+        '<div><div class="card-name">' + escapeHtml(a.clinicName || '') + '</div>' +
+        '<div class="card-sub">🏥 ' + escapeHtml(a.department || 'Chưa chọn khoa') + '</div>' +
+        '<div class="card-sub">🗓 ' + escapeHtml(a.preferredDate || '') + ' · ' + escapeHtml(a.preferredTime || '') + '</div></div>' +
+        '<div class="ticket-status ' + (a.status === 'confirmed' ? 'confirmed' : (a.status === 'cancelled' ? '' : 'pending')) + '" style="font-size:11px;">' + appointmentStatusLabelCustomer(a.status) + '</div>' +
+        '</div></div>';
+    });
+    container.innerHTML = html;
+  }
+
   let currentServiceType = 'passenger';
   function setServiceType(type){
     currentServiceType = type;
@@ -2647,6 +2877,56 @@
   };
 
   /* ---------- ĐẶT ĐỒ ĂN ---------- */
+  /* ---------- GIẢI TRÍ ---------- */
+  window.getEntertainmentPlaces = async function(){
+    const snap = await getDocs(collection(db, "entertainmentPlaces"));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+
+  /* ---------- SỨC KHỎE ---------- */
+  window.getApprovedClinics = async function(){
+    const q = query(collection(db, "clinics"), where("status", "==", "approved"));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+
+  window.getClinicDepartments = async function(clinicId){
+    const q = query(collection(db, "departments"), where("clinicId", "==", clinicId));
+    const snap = await getDocs(q);
+    const departments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    departments.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    return departments;
+  };
+
+  window.createAppointment = async function(data){
+    await addDoc(collection(db, "appointments"), {
+      clinicId: data.clinicId,
+      clinicName: data.clinicName,
+      department: data.department || '',
+      preferredDate: data.preferredDate,
+      preferredTime: data.preferredTime,
+      note: data.note || '',
+      customerId: data.customerId,
+      customerName: data.customerName,
+      customerPhone: data.customerPhone,
+      status: 'pending',
+      createdAt: serverTimestamp()
+    });
+  };
+
+  window.listenForMyAppointments = function(customerId){
+    const q = query(collection(db, "appointments"), where("customerId", "==", customerId));
+    onSnapshot(q, (snap) => {
+      const appointments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      appointments.sort((a, b) => {
+        const at = (a.createdAt && a.createdAt.toMillis) ? a.createdAt.toMillis() : 0;
+        const bt = (b.createdAt && b.createdAt.toMillis) ? b.createdAt.toMillis() : 0;
+        return bt - at;
+      });
+      if (window.renderMyAppointments) window.renderMyAppointments(appointments);
+    });
+  };
+
   window.getApprovedStores = async function(){
     const q = query(collection(db, "stores"), where("status", "==", "approved"));
     const snap = await getDocs(q);
