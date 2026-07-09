@@ -346,6 +346,8 @@
     <div style="background:var(--surface-800); border:1px solid var(--border-steel); border-radius:16px; padding:20px; width:100%; max-width:400px; max-height:88vh; overflow-y:auto;">
       <div style="font-size:15px; font-weight:700; margin-bottom:14px;" id="clinic-modal-title">Thêm phòng khám</div>
       <input type="hidden" id="clinic-modal-id">
+      <div id="clinic-modal-photo-picker" onclick="document.getElementById('clinic-modal-photo-input').click()" style="width:100%;height:130px;border-radius:12px;background:var(--bg-asphalt-900);border:1px dashed var(--border-steel);display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer;margin-bottom:14px;background-size:cover;background-position:center;color:var(--text-dim);">📷 Ảnh đại diện</div>
+      <input type="file" id="clinic-modal-photo-input" accept="image/*" style="display:none;" onchange="handleClinicModalPhoto(this)">
       <div style="margin-bottom:10px;"><input type="text" id="clinic-modal-name" placeholder="Tên phòng khám" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
       <div style="margin-bottom:10px;"><input type="text" id="clinic-modal-owner" placeholder="Tên người quản lý" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
       <div style="margin-bottom:10px;"><input type="text" id="clinic-modal-phone" placeholder="Số điện thoại" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
@@ -364,6 +366,8 @@
     <div style="background:var(--surface-800); border:1px solid var(--border-steel); border-radius:16px; padding:20px; width:100%; max-width:400px; max-height:88vh; overflow-y:auto;">
       <div style="font-size:15px; font-weight:700; margin-bottom:14px;" id="store-modal-title">Thêm cửa hàng</div>
       <input type="hidden" id="store-modal-id">
+      <div id="store-modal-photo-picker" onclick="document.getElementById('store-modal-photo-input').click()" style="width:100%;height:130px;border-radius:12px;background:var(--bg-asphalt-900);border:1px dashed var(--border-steel);display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer;margin-bottom:14px;background-size:cover;background-position:center;color:var(--text-dim);">📷 Ảnh đại diện</div>
+      <input type="file" id="store-modal-photo-input" accept="image/*" style="display:none;" onchange="handleStoreModalPhoto(this)">
       <div style="margin-bottom:10px;"><input type="text" id="store-modal-name" placeholder="Tên cửa hàng" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
       <div style="margin-bottom:10px;">
         <select id="store-modal-category" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;font-family:inherit;">
@@ -1693,6 +1697,7 @@
     } catch (err) { console.error(err); alert('Có lỗi khi lưu.'); }
   };
 
+  let pendingStoreModalPhoto = null;
   window.openStoreModal = function(storeId){
     const store = storeId ? storesCache.find(s => s.id === storeId) : null;
     document.getElementById('store-modal-title').textContent = store ? 'Sửa cửa hàng' : 'Thêm cửa hàng mới';
@@ -1703,7 +1708,27 @@
     document.getElementById('store-modal-phone').value = store ? (store.phone || '') : '';
     document.getElementById('store-modal-address').value = store ? (store.address || '') : '';
     document.getElementById('store-modal-delete-btn').style.display = store ? 'inline-block' : 'none';
+    pendingStoreModalPhoto = null;
+    const picker = document.getElementById('store-modal-photo-picker');
+    if (store && store.photoBase64) {
+      picker.style.backgroundImage = 'url(' + store.photoBase64 + ')';
+      picker.textContent = '';
+    } else {
+      picker.style.backgroundImage = 'none';
+      picker.textContent = '📷 Ảnh đại diện';
+    }
     document.getElementById('store-modal').style.display = 'flex';
+  };
+  window.handleStoreModalPhoto = async function(inputEl){
+    const file = inputEl.files && inputEl.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageFile(file, 500, 0.7);
+      pendingStoreModalPhoto = dataUrl;
+      const picker = document.getElementById('store-modal-photo-picker');
+      picker.style.backgroundImage = 'url(' + dataUrl + ')';
+      picker.textContent = '';
+    } catch (err) { console.error(err); alert('Có lỗi khi xử lý ảnh, thử lại nhé.'); }
   };
   window.closeStoreModal = function(){
     document.getElementById('store-modal').style.display = 'none';
@@ -1718,16 +1743,20 @@
     if (!name || !phone || !address) { alert('Nhập đủ tên, SĐT, địa chỉ nhé.'); return; }
     try {
       if (id) {
-        await setDoc(doc(db, "stores", id), { name, category, ownerName, phone, address, updatedAt: serverTimestamp() }, { merge: true });
+        const fields = { name, category, ownerName, phone, address, updatedAt: serverTimestamp() };
+        if (pendingStoreModalPhoto) fields.photoBase64 = pendingStoreModalPhoto;
+        await setDoc(doc(db, "stores", id), fields, { merge: true });
       } else {
         const settingsSnap = await getDoc(doc(db, "settings", "general"));
         const defaultCommission = (settingsSnap.exists() && settingsSnap.data().defaultStoreCommissionPercent) || 15;
         await addDoc(collection(db, "stores"), {
           name, category, ownerName, phone, address,
+          photoBase64: pendingStoreModalPhoto || '',
           passwordHash: '', status: 'approved', commissionPercent: defaultCommission,
           createdAt: serverTimestamp()
         });
       }
+      pendingStoreModalPhoto = null;
       closeStoreModal();
       alert('Đã lưu cửa hàng!');
     } catch (err) { console.error(err); alert('Có lỗi khi lưu.'); }
@@ -1992,6 +2021,7 @@
     catch (err) { console.error(err); alert('Có lỗi khi từ chối.'); }
   };
 
+  let pendingClinicModalPhoto = null;
   window.openClinicModal = function(clinicId){
     const clinic = clinicId ? clinicsCache.find(c => c.id === clinicId) : null;
     document.getElementById('clinic-modal-title').textContent = clinic ? 'Sửa phòng khám' : 'Thêm phòng khám mới';
@@ -2001,7 +2031,27 @@
     document.getElementById('clinic-modal-phone').value = clinic ? (clinic.phone || '') : '';
     document.getElementById('clinic-modal-address').value = clinic ? (clinic.address || '') : '';
     document.getElementById('clinic-modal-delete-btn').style.display = clinic ? 'inline-block' : 'none';
+    pendingClinicModalPhoto = null;
+    const picker = document.getElementById('clinic-modal-photo-picker');
+    if (clinic && clinic.photoBase64) {
+      picker.style.backgroundImage = 'url(' + clinic.photoBase64 + ')';
+      picker.textContent = '';
+    } else {
+      picker.style.backgroundImage = 'none';
+      picker.textContent = '📷 Ảnh đại diện';
+    }
     document.getElementById('clinic-modal').style.display = 'flex';
+  };
+  window.handleClinicModalPhoto = async function(inputEl){
+    const file = inputEl.files && inputEl.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageFile(file, 500, 0.7);
+      pendingClinicModalPhoto = dataUrl;
+      const picker = document.getElementById('clinic-modal-photo-picker');
+      picker.style.backgroundImage = 'url(' + dataUrl + ')';
+      picker.textContent = '';
+    } catch (err) { console.error(err); alert('Có lỗi khi xử lý ảnh, thử lại nhé.'); }
   };
   window.closeClinicModal = function(){
     document.getElementById('clinic-modal').style.display = 'none';
@@ -2015,12 +2065,16 @@
     if (!name || !phone || !address) { alert('Nhập đủ tên, SĐT, địa chỉ nhé.'); return; }
     try {
       if (id) {
-        await setDoc(doc(db, "clinics", id), { name, ownerName, phone, address, updatedAt: serverTimestamp() }, { merge: true });
+        const fields = { name, ownerName, phone, address, updatedAt: serverTimestamp() };
+        if (pendingClinicModalPhoto) fields.photoBase64 = pendingClinicModalPhoto;
+        await setDoc(doc(db, "clinics", id), fields, { merge: true });
       } else {
         await addDoc(collection(db, "clinics"), {
-          name, ownerName, phone, address, passwordHash: '', status: 'approved', createdAt: serverTimestamp()
+          name, ownerName, phone, address, photoBase64: pendingClinicModalPhoto || '',
+          passwordHash: '', status: 'approved', createdAt: serverTimestamp()
         });
       }
+      pendingClinicModalPhoto = null;
       closeClinicModal();
       alert('Đã lưu phòng khám!');
     } catch (err) { console.error(err); alert('Có lỗi khi lưu.'); }
