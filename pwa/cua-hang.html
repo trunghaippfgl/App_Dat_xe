@@ -191,6 +191,7 @@
       <div class="sub" id="store-status-header"></div>
     </div>
     <button class="icon-btn" onclick="handleLogout()">🚪 Thoát</button>
+    <button class="icon-btn" id="notif-btn" onclick="enableNotifications()" style="margin-left:8px;">🔔 Bật thông báo</button>
   </div>
   <div class="tabs">
     <div class="tab-btn active" id="tab-orders" onclick="switchTab('orders')">Đơn hàng</div>
@@ -698,6 +699,7 @@
     getFirestore, collection, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, serverTimestamp,
     query, where, orderBy, onSnapshot, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBb8uSsLuChx4OYONl2ffFFwDSbSncZBpI",
@@ -711,6 +713,38 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const messaging = getMessaging(app);
+  const VAPID_KEY = "BHZahFM6YdPRj7uA1b6FgNh7UIegA_5nfu2sTIShQrWnRSY1UuRTDAsscUnmCR4vVNv6YAOnoVzNT5dcbhcTJzk";
+
+  window.enableNotifications = function(){
+    if (!('Notification' in window)) { alert('Trình duyệt này không hỗ trợ thông báo.'); return; }
+    const storeId = localStorage.getItem('xn_store_id');
+    if (!storeId) { alert('Bạn cần đăng nhập trước.'); return; }
+    const btn = document.getElementById('notif-btn');
+    btn.textContent = 'Đang bật...';
+    Notification.requestPermission().then((perm) => {
+      if (perm !== 'granted') {
+        alert('Bạn chưa cho phép thông báo. Có thể bật lại trong cài đặt trình duyệt.');
+        btn.textContent = '🔔 Bật thông báo';
+        return;
+      }
+      navigator.serviceWorker.register('firebase-messaging-sw.js').then((registration) => {
+        getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration })
+          .then((token) => {
+            if (!token) { alert('Không lấy được mã thông báo, thử lại nhé.'); btn.textContent = '🔔 Bật thông báo'; return; }
+            addDoc(collection(db, "storeTokens"), { token: token, storeId: storeId, createdAt: serverTimestamp() })
+              .then(() => { btn.textContent = '✓ Đã bật thông báo'; });
+          })
+          .catch((err) => { console.error('FCM token error:', err); alert('Có lỗi khi đăng ký thông báo: ' + err.message); btn.textContent = '🔔 Bật thông báo'; });
+      });
+    });
+  };
+
+  onMessage(messaging, (payload) => {
+    const title = (payload.notification && payload.notification.title) || 'Thông báo mới';
+    const body = (payload.notification && payload.notification.body) || '';
+    alert(title + '\n' + body);
+  });
 
   function normalizePhoneModule(phone){
     if (!phone) return '';

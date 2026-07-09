@@ -117,6 +117,7 @@
       <input type="checkbox" id="accepting-toggle" onchange="toggleAcceptingOrders()">
       <span class="slider"></span>
     </label>
+    <button class="icon-btn" id="notif-btn" onclick="enableNotifications()">🔔</button>
     <button class="icon-btn" onclick="handleLogout()">🚪 Thoát</button>
   </div>
   <div id="membership-banner" style="display:none; padding:10px 16px; font-size:12.5px; font-weight:700; text-align:center;"></div>
@@ -535,9 +536,10 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
-    getFirestore, collection, doc, getDoc, setDoc, updateDoc, serverTimestamp,
+    getFirestore, collection, doc, getDoc, setDoc, updateDoc, addDoc, serverTimestamp,
     query, where, onSnapshot, getDocs, runTransaction
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBb8uSsLuChx4OYONl2ffFFwDSbSncZBpI",
@@ -551,6 +553,38 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const messaging = getMessaging(app);
+  const VAPID_KEY = "BHZahFM6YdPRj7uA1b6FgNh7UIegA_5nfu2sTIShQrWnRSY1UuRTDAsscUnmCR4vVNv6YAOnoVzNT5dcbhcTJzk";
+
+  window.enableNotifications = function(){
+    if (!('Notification' in window)) { alert('Trình duyệt này không hỗ trợ thông báo.'); return; }
+    const driverId = localStorage.getItem('xn_driver_id');
+    if (!driverId) { alert('Bạn cần đăng nhập trước.'); return; }
+    const btn = document.getElementById('notif-btn');
+    btn.textContent = '...';
+    Notification.requestPermission().then((perm) => {
+      if (perm !== 'granted') {
+        alert('Bạn chưa cho phép thông báo. Có thể bật lại trong cài đặt trình duyệt.');
+        btn.textContent = '🔔';
+        return;
+      }
+      navigator.serviceWorker.register('firebase-messaging-sw.js').then((registration) => {
+        getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration })
+          .then((token) => {
+            if (!token) { alert('Không lấy được mã thông báo, thử lại nhé.'); btn.textContent = '🔔'; return; }
+            addDoc(collection(db, "driverTokens"), { token: token, driverId: driverId, createdAt: serverTimestamp() })
+              .then(() => { btn.textContent = '🔔✓'; });
+          })
+          .catch((err) => { console.error('FCM token error:', err); alert('Có lỗi khi đăng ký thông báo: ' + err.message); btn.textContent = '🔔'; });
+      });
+    });
+  };
+
+  onMessage(messaging, (payload) => {
+    const title = (payload.notification && payload.notification.title) || 'Thông báo mới';
+    const body = (payload.notification && payload.notification.body) || '';
+    alert(title + '\n' + body);
+  });
 
   function normalizePhoneModule(phone){
     if (!phone) return '';
