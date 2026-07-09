@@ -254,9 +254,31 @@
   <!-- DRIVERS PANEL -->
   <div class="panel" id="panel-drivers">
     <div class="scroll">
+      <div class="card">
+        <div class="card-name" style="margin-bottom:10px;">💳 Gói phí thành viên tài xế</div>
+        <div id="membership-plans-list" style="margin-bottom:10px;"></div>
+        <div class="card-actions" style="flex-wrap:wrap;">
+          <input type="text" id="new-plan-name" placeholder="Tên gói (VD: 1 tháng)" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:8px;flex:1;min-width:100px;">
+          <input type="text" id="new-plan-days" placeholder="Số ngày" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:8px;width:80px;">
+          <input type="text" id="new-plan-price" placeholder="Giá (VNĐ)" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:8px;width:100px;">
+        </div>
+        <button class="btn-tiny" style="margin-top:8px;" onclick="addMembershipPlan()">+ Thêm gói</button>
+      </div>
       <button class="btn-tiny" style="margin-bottom:12px;" onclick="addDriverFromAdmin()">+ Thêm tài xế mới</button>
       <div id="drivers-list"></div>
       <div class="empty-state" id="drivers-empty" style="display:none;">Chưa có tài xế nào đăng ký. Gửi link trang đăng ký tài xế cho họ nhé.</div>
+    </div>
+  </div>
+
+  <!-- RENEW MEMBERSHIP MODAL -->
+  <div id="renew-membership-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--surface-800); border:1px solid var(--border-steel); border-radius:16px; padding:20px; width:100%; max-width:380px;">
+      <div style="font-size:15px; font-weight:700; margin-bottom:14px;" id="renew-modal-title">Gia hạn thành viên</div>
+      <select id="renew-plan-select" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;margin-bottom:14px;font-family:inherit;"></select>
+      <div class="card-actions">
+        <button class="btn-tiny ghost" onclick="closeRenewModal()">Hủy</button>
+        <button class="btn-tiny" onclick="confirmRenewMembership()">Đã thu tiền, Gia hạn</button>
+      </div>
     </div>
   </div>
 
@@ -658,8 +680,11 @@
       const mapLine = b.pickupMapUrl ? '<a class="map-link" href="' + escapeHtml(b.pickupMapUrl) + '" target="_blank">📍 Xem điểm đón trên bản đồ</a><br>' : '';
       let driverOptions = '<option value="">-- Gán tài xế --</option>';
       driversCache.forEach((d) => {
-        driverOptions += '<option value="' + d.id + '"' + (b.driverId === d.id ? ' selected' : '') + '>' + escapeHtml(d.name || '') + '</option>';
+        const isSelected = b.driverId ? b.driverId === d.id : (b.preferredDriverId === d.id);
+        driverOptions += '<option value="' + d.id + '"' + (isSelected ? ' selected' : '') + '>' + escapeHtml(d.name || '') + (b.preferredDriverId === d.id ? ' 🎯' : '') + '</option>';
       });
+      const preferredDriverLine = (b.preferredDriverId && !b.driverId)
+        ? '<div style="font-size:12px;color:var(--accent-amber);margin-top:6px;font-weight:700;">🎯 Khách chỉ định tài xế quen: ' + escapeHtml(b.preferredDriverName || '') + '</div>' : '';
       const ratingLine = b.rating ? '<div style="font-size:12px;color:var(--accent-amber);margin-top:6px;">' +
         '★'.repeat(b.rating) + '☆'.repeat(5 - b.rating) + (b.ratingComment ? (' — ' + escapeHtml(b.ratingComment)) : '') + '</div>' : '';
       const voucherAppliedLine = b.appliedVoucherCode && b.status !== 'confirmed' && b.status !== 'done'
@@ -678,7 +703,7 @@
         '</div><div class="card-time">' + escapeHtml(b.date || '') + ' · ' + escapeHtml(b.time || '') + '</div></div>' +
         '<div class="status-badge ' + (b.status || 'requested') + '">' + statusLabel(b.status) + '</div></div>' +
         '<div class="card-route"><b>' + escapeHtml(b.pickup || '') + '</b> → <b>' + escapeHtml(b.dropoff || '') + '</b></div>' +
-        packageLine + mapLine + ratingLine + voucherAppliedLine + discountLine +
+        packageLine + mapLine + ratingLine + voucherAppliedLine + discountLine + preferredDriverLine +
         '<div class="card-actions">' +
         '<select id="driver-select-' + b.id + '" onchange="assignDriver(\'' + b.id + '\', this.value)" style="background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);font-size:12.5px;padding:8px;">' + driverOptions + '</select>' +
         '</div>' +
@@ -899,6 +924,94 @@
 
   /* ---------- DRIVERS ---------- */
   let driversCache = [];
+
+  /* ---------- GÓI THÀNH VIÊN TÀI XẾ ---------- */
+  let membershipPlansCache = [];
+  function listenForMembershipPlans(){
+    onSnapshot(collection(db, "membershipPlans"), (snap) => {
+      membershipPlansCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      membershipPlansCache.sort((a, b) => (a.durationDays || 0) - (b.durationDays || 0));
+      renderMembershipPlansList();
+    });
+  }
+  function renderMembershipPlansList(){
+    const container = document.getElementById('membership-plans-list');
+    if (!container) return;
+    if (membershipPlansCache.length === 0) {
+      container.innerHTML = '<div style="font-size:12.5px;color:var(--text-muted);">Chưa có gói nào. Thêm gói đầu tiên bên dưới.</div>';
+      return;
+    }
+    let html = '';
+    membershipPlansCache.forEach((p) => {
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-steel);">' +
+        '<div><b>' + escapeHtml(p.name || '') + '</b> — ' + (p.durationDays || 0) + ' ngày — ' + formatVnd(p.price) + '</div>' +
+        '<button class="btn-tiny red" onclick="deleteMembershipPlan(\'' + p.id + '\')">Xóa</button>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+  window.addMembershipPlan = async function(){
+    const name = document.getElementById('new-plan-name').value.trim();
+    const days = parseInt(document.getElementById('new-plan-days').value.trim(), 10);
+    const price = parsePriceToNumber(document.getElementById('new-plan-price').value.trim());
+    if (!name || !days || !price) { alert('Nhập đủ tên gói, số ngày, giá nhé.'); return; }
+    try {
+      await addDoc(collection(db, "membershipPlans"), { name, durationDays: days, price, createdAt: serverTimestamp() });
+      document.getElementById('new-plan-name').value = '';
+      document.getElementById('new-plan-days').value = '';
+      document.getElementById('new-plan-price').value = '';
+    } catch (err) { console.error(err); alert('Có lỗi khi thêm gói.'); }
+  };
+  window.deleteMembershipPlan = async function(planId){
+    if (!confirm('Xóa gói thành viên này?')) return;
+    try { await deleteDoc(doc(db, "membershipPlans", planId)); }
+    catch (err) { console.error(err); alert('Có lỗi khi xóa gói.'); }
+  };
+
+  function driverMembershipInfo(d){
+    if (!d.membershipExpiresAt) return { active: false, text: 'Chưa có gói thành viên', color: 'var(--text-dim)' };
+    const expiresMs = d.membershipExpiresAt.toMillis ? d.membershipExpiresAt.toMillis() : 0;
+    const now = Date.now();
+    const daysLeft = Math.ceil((expiresMs - now) / 86400000);
+    if (expiresMs < now) return { active: false, text: 'Hết hạn (' + formatDateShort(expiresMs) + ')', color: 'var(--alert-red)' };
+    if (daysLeft <= 3) return { active: true, text: 'Sắp hết hạn — còn ' + daysLeft + ' ngày (' + formatDateShort(expiresMs) + ')', color: 'var(--accent-amber)' };
+    return { active: true, text: 'Còn hạn đến ' + formatDateShort(expiresMs), color: 'var(--route-green)' };
+  }
+  function formatDateShort(ms){
+    const d = new Date(ms);
+    return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+  }
+
+  let currentRenewDriverId = null;
+  window.openRenewModal = function(driverId, driverName){
+    currentRenewDriverId = driverId;
+    document.getElementById('renew-modal-title').textContent = 'Gia hạn thành viên — ' + driverName;
+    const select = document.getElementById('renew-plan-select');
+    select.innerHTML = membershipPlansCache.map(p => '<option value="' + p.id + '">' + escapeHtml(p.name) + ' — ' + formatVnd(p.price) + '</option>').join('');
+    if (membershipPlansCache.length === 0) select.innerHTML = '<option value="">Chưa có gói nào, tạo gói trước nhé</option>';
+    document.getElementById('renew-membership-overlay').style.display = 'flex';
+  };
+  window.closeRenewModal = function(){
+    document.getElementById('renew-membership-overlay').style.display = 'none';
+  };
+  window.confirmRenewMembership = async function(){
+    const planId = document.getElementById('renew-plan-select').value;
+    const plan = membershipPlansCache.find(p => p.id === planId);
+    if (!plan || !currentRenewDriverId) { alert('Chọn gói hợp lệ nhé.'); return; }
+    const driver = driversCache.find(d => d.id === currentRenewDriverId);
+    const currentExpiresMs = (driver && driver.membershipExpiresAt && driver.membershipExpiresAt.toMillis) ? driver.membershipExpiresAt.toMillis() : 0;
+    const baseMs = Math.max(currentExpiresMs, Date.now());
+    const newExpiresMs = baseMs + plan.durationDays * 86400000;
+    try {
+      await setDoc(doc(db, "drivers", currentRenewDriverId), {
+        membershipExpiresAt: new Date(newExpiresMs),
+        membershipPlanName: plan.name,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      closeRenewModal();
+      alert('Đã gia hạn thành viên thành công!');
+    } catch (err) { console.error(err); alert('Có lỗi khi gia hạn.'); }
+  };
   function driverRatingText(driverId){
     const rated = allBookings.filter((b) => b.driverId === driverId && b.rating);
     if (rated.length === 0) return 'Chưa có đánh giá';
@@ -919,6 +1032,7 @@
     driversCache.forEach((d) => {
       const isReady = d.status !== 'busy';
       const avatarStyle = d.photoBase64 ? ' style="background-image:url(' + d.photoBase64 + ');background-size:cover;background-position:center;"' : '';
+      const membership = driverMembershipInfo(d);
       html += '<div class="driver-card" style="flex-direction:column; align-items:stretch;">' +
         '<div style="display:flex; align-items:center; gap:12px;">' +
         '<div class="driver-avatar"' + avatarStyle + '>' + (d.photoBase64 ? '' : escapeHtml((d.name||'?').charAt(0))) + '</div>' +
@@ -927,7 +1041,10 @@
         '<div class="driver-detail" style="color:var(--accent-amber);">' + driverRatingText(d.id) + '</div></div>' +
         '<button class="btn-tiny ' + (isReady ? 'ghost' : '') + '" onclick="toggleDriverStatus(\'' + d.id + '\', ' + (isReady ? "'busy'" : "'ready'") + ')">' +
         (isReady ? 'Sẵn sàng' : 'Đang chạy') + '</button></div>' +
+        '<div style="font-size:12px;margin-top:8px;color:' + membership.color + ';font-weight:700;">💳 ' + membership.text + '</div>' +
+        (d.referralCode ? '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">🎯 Mã giới thiệu: <b style="color:var(--text-fog);">' + escapeHtml(d.referralCode) + '</b></div>' : '') +
         '<div class="card-actions" style="margin-top:10px;">' +
+        '<button class="btn-tiny" onclick="openRenewModal(\'' + d.id + '\', \'' + escapeHtml(d.name||'').replace(/'/g,"") + '\')">💳 Gia hạn</button>' +
         '<button class="btn-tiny ghost" onclick="editDriverFromAdmin(\'' + d.id + '\', \'' + escapeHtml(d.name||'').replace(/'/g,"") + '\', \'' + escapeHtml(d.car||'').replace(/'/g,"") + '\', \'' + escapeHtml(d.phone||'').replace(/'/g,"") + '\')">✎ Sửa</button>' +
         '<button class="btn-tiny red" onclick="deleteDriverFromAdmin(\'' + d.id + '\', \'' + escapeHtml(d.name||'').replace(/'/g,"") + '\')">🗑 Xóa</button>' +
         '</div></div>';
@@ -1486,6 +1603,7 @@
   listenForCustomers();
   listenForStores();
   listenForFoodOrders();
+  listenForMembershipPlans();
 </script>
 </body>
 </html>

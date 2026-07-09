@@ -119,6 +119,7 @@
     </label>
     <button class="icon-btn" onclick="handleLogout()">🚪 Thoát</button>
   </div>
+  <div id="membership-banner" style="display:none; padding:10px 16px; font-size:12.5px; font-weight:700; text-align:center;"></div>
   <div class="tabs">
     <div class="tab-btn active" id="tab-available" onclick="switchTab('available')">Đơn có thể nhận</div>
     <div class="tab-btn" id="tab-mine" onclick="switchTab('mine')">Đơn của tôi</div>
@@ -159,6 +160,15 @@
   <!-- SETTINGS PANEL -->
   <div class="panel" id="panel-settings">
     <div class="scroll">
+      <div class="card" style="text-align:center;">
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Tình trạng thành viên</div>
+        <div style="font-size:16px; font-weight:800;" id="membership-status-display">-</div>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">Mã giới thiệu của bạn — chia sẻ cho khách quen</div>
+        <div style="font-size:22px; font-weight:800; color:var(--accent-amber); letter-spacing:2px;" id="referral-code-display">------</div>
+        <button class="btn-tiny ghost" style="margin-top:10px;" onclick="copyReferralCode()">📋 Sao chép mã</button>
+      </div>
       <div class="card">
         <div class="card-name" style="margin-bottom:10px;">🔒 Đổi mật khẩu</div>
         <div class="field">
@@ -205,6 +215,21 @@
     document.getElementById(id).classList.add('active');
   }
 
+  function formatDateShort(ms){
+    const d = new Date(ms);
+    return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+  }
+
+  function driverMembershipInfo(driver){
+    if (!driver.membershipExpiresAt) return { active: false, text: 'Chưa có gói thành viên — liên hệ admin để đăng ký', color: 'var(--text-dim)', banner: false };
+    const expiresMs = driver.membershipExpiresAt.seconds ? driver.membershipExpiresAt.seconds * 1000 : new Date(driver.membershipExpiresAt).getTime();
+    const now = Date.now();
+    const daysLeft = Math.ceil((expiresMs - now) / 86400000);
+    if (expiresMs < now) return { active: false, text: '❌ Đã hết hạn (' + formatDateShort(expiresMs) + ')', color: 'var(--alert-red)', banner: true, bannerText: '⚠️ Thành viên đã hết hạn — liên hệ admin để gia hạn. Bạn không thể nhận đơn mới cho tới khi gia hạn.', bannerColor: 'var(--alert-red-dim)', bannerTextColor: 'var(--alert-red)' };
+    if (daysLeft <= 3) return { active: true, text: '⏳ Sắp hết hạn — còn ' + daysLeft + ' ngày (' + formatDateShort(expiresMs) + ')', color: 'var(--accent-amber)', banner: true, bannerText: '⏳ Thành viên sắp hết hạn (còn ' + daysLeft + ' ngày) — liên hệ admin để gia hạn nhé.', bannerColor: 'var(--accent-amber-dim)', bannerTextColor: 'var(--accent-amber)' };
+    return { active: true, text: '✓ Còn hạn đến ' + formatDateShort(expiresMs), color: 'var(--route-green)', banner: false };
+  }
+
   function showAppRoot(driver){
     currentDriverData = driver;
     document.querySelectorAll('.onboard-screen').forEach(s => s.classList.remove('active'));
@@ -212,8 +237,37 @@
     document.getElementById('driver-name-header').textContent = driver.name || 'Tài xế';
     document.getElementById('driver-sub-header').textContent = driver.car || '';
     document.getElementById('accepting-toggle').checked = driver.acceptingFoodOrders === true;
+
+    const membership = driverMembershipInfo(driver);
+    document.getElementById('membership-status-display').textContent = membership.text;
+    document.getElementById('membership-status-display').style.color = membership.color;
+    const banner = document.getElementById('membership-banner');
+    if (membership.banner) {
+      banner.style.display = 'block';
+      banner.style.background = membership.bannerColor;
+      banner.style.color = membership.bannerTextColor;
+      banner.textContent = membership.bannerText;
+    } else {
+      banner.style.display = 'none';
+    }
+    document.getElementById('accepting-toggle').disabled = !membership.active;
+
+    if (driver.referralCode) {
+      document.getElementById('referral-code-display').textContent = driver.referralCode;
+    } else if (window.ensureDriverReferralCode) {
+      window.ensureDriverReferralCode(currentDriverId).then((code) => {
+        if (code) document.getElementById('referral-code-display').textContent = code;
+      });
+    }
+
     if (window.listenForAvailableOrders) window.listenForAvailableOrders();
     if (window.listenForMyOrders) window.listenForMyOrders(currentDriverId);
+  }
+
+  function copyReferralCode(){
+    const code = document.getElementById('referral-code-display').textContent;
+    if (!code || code === '------') return;
+    navigator.clipboard.writeText(code).then(() => alert('Đã sao chép mã "' + code + '"!')).catch(() => {});
   }
 
   async function handleDriverLogin(){
@@ -299,6 +353,8 @@
   }
 
   async function acceptOrder(orderId){
+    const membership = driverMembershipInfo(currentDriverData || {});
+    if (!membership.active) { alert('Tài khoản của bạn chưa/hết hạn thành viên. Liên hệ admin để gia hạn trước khi nhận đơn nhé.'); return; }
     try {
       const result = await window.tryAcceptFoodOrder(orderId, currentDriverId, currentDriverData);
       if (!result.success) {
@@ -452,6 +508,29 @@
 
   window.setDriverPassword = async function(driverId, hash){
     await setDoc(doc(db, "drivers", driverId), { passwordHash: hash, updatedAt: serverTimestamp() }, { merge: true });
+  };
+
+  function generateReferralCode(){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+    return code;
+  }
+
+  window.ensureDriverReferralCode = async function(driverId){
+    const snap = await getDoc(doc(db, "drivers", driverId));
+    if (!snap.exists()) return null;
+    if (snap.data().referralCode) return snap.data().referralCode;
+    let code = generateReferralCode();
+    // đảm bảo mã không trùng (kiểm tra nhanh, số tài xế nhỏ nên đủ an toàn)
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const q = query(collection(db, "drivers"), where("referralCode", "==", code));
+      const existing = await getDocs(q);
+      if (existing.empty) break;
+      code = generateReferralCode();
+    }
+    await setDoc(doc(db, "drivers", driverId), { referralCode: code, updatedAt: serverTimestamp() }, { merge: true });
+    return code;
   };
 
   window.setDriverAccepting = async function(driverId, accepting){

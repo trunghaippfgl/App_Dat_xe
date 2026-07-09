@@ -638,6 +638,14 @@
               </div>
             </div>
             <div class="field" style="margin-top:12px;">
+              <span class="field-label">Mã tài xế quen (nếu có, không bắt buộc)</span>
+              <div class="field-input">
+                <input type="text" id="booking-driver-code-input" class="native-input" placeholder="VD: A3F9K2" style="text-transform:uppercase;">
+                <button type="button" class="locate-btn" onclick="checkPreferredDriverCode()" title="Kiểm tra mã">✓</button>
+              </div>
+              <div class="hint-line" id="booking-driver-status" style="text-align:left; margin-top:6px;"></div>
+            </div>
+            <div class="field" style="margin-top:12px;">
               <span class="field-label">Mã giảm giá</span>
               <div class="field-input">
                 <input type="text" id="booking-voucher-code-input" class="native-input" placeholder="VD: CHAOMUNG" style="text-transform:uppercase;">
@@ -1811,7 +1819,9 @@
           packageDesc: packageDesc,
           receiverName: receiverName,
           receiverPhone: receiverPhone,
-          appliedVoucherCode: appliedCode
+          appliedVoucherCode: appliedCode,
+          preferredDriverId: checkedPreferredDriver ? checkedPreferredDriver.id : '',
+          preferredDriverName: checkedPreferredDriver ? checkedPreferredDriver.name : ''
         });
         localStorage.setItem('xn_last_booking_id', newId);
         if (mapUrl && window.sendMessageToFirestore) {
@@ -1826,6 +1836,9 @@
           await window.sendMessageToFirestore(customerId, 'me', confirmMsg, customerName);
           clearAppliedVoucher();
         }
+        checkedPreferredDriver = null;
+        document.getElementById('booking-driver-code-input').value = '';
+        document.getElementById('booking-driver-status').textContent = '';
       } catch (err) {
         console.error('Không tạo được yêu cầu đặt xe:', err);
       }
@@ -2222,6 +2235,28 @@
     if (voucherInput) voucherInput.value = code;
   }
 
+  let checkedPreferredDriver = null;
+  async function checkPreferredDriverCode(){
+    const code = document.getElementById('booking-driver-code-input').value.trim().toUpperCase();
+    const statusEl = document.getElementById('booking-driver-status');
+    checkedPreferredDriver = null;
+    if (!code) { statusEl.textContent = ''; return; }
+    const ready = await waitForFirebaseReady();
+    if (ready && window.findDriverByReferralCode) {
+      try {
+        const driver = await window.findDriverByReferralCode(code);
+        if (driver) {
+          checkedPreferredDriver = driver;
+          statusEl.style.color = 'var(--route-green)';
+          statusEl.textContent = '✓ Đơn sẽ ưu tiên gửi cho tài xế: ' + driver.name;
+        } else {
+          statusEl.style.color = 'var(--alert-red)';
+          statusEl.textContent = 'Không tìm thấy tài xế với mã này.';
+        }
+      } catch (err) { console.error(err); statusEl.textContent = 'Có lỗi khi kiểm tra mã.'; }
+    }
+  }
+
   async function applyVoucherCode(){
     const code = document.getElementById('voucher-code-input').value.trim().toUpperCase();
     if (!code) { alert('Bạn nhập mã voucher trước nhé.'); return; }
@@ -2551,6 +2586,8 @@
       receiverName: data.receiverName || '',
       receiverPhone: data.receiverPhone || '',
       appliedVoucherCode: data.appliedVoucherCode || '',
+      preferredDriverId: data.preferredDriverId || '',
+      preferredDriverName: data.preferredDriverName || '',
       createdAt: serverTimestamp()
     });
     return docRef.id;
@@ -2587,6 +2624,14 @@
       rating: stars,
       ratingComment: comment || ''
     });
+  };
+
+  window.findDriverByReferralCode = async function(code){
+    const q = query(collection(db, "drivers"), where("referralCode", "==", code));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return { id: d.id, ...d.data() };
   };
 
   window.checkAndApplyVoucher = async function (customerId, code) {
