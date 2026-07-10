@@ -1657,6 +1657,7 @@
     d.value = tmp;
   }
   let lastGpsCoords = null;
+  let lastPickupHouseNumber = '';
   function useCurrentLocation(){
     const pickupInput = document.getElementById('pickup-text');
     if (!navigator.geolocation) {
@@ -1673,14 +1674,23 @@
         const lon = pos.coords.longitude;
         lastGpsCoords = { lat: lat, lon: lon };
         localStorage.setItem('xn_last_pickup_coords', lat + ',' + lon);
+        lastPickupHouseNumber = '';
         try {
-          const res = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon);
+          const res = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon + '&addressdetails=1');
           const data = await res.json();
-          pickupInput.value = data.display_name || (lat.toFixed(5) + ', ' + lon.toFixed(5));
+          const addr = data.address || {};
+          if (addr.house_number) {
+            lastPickupHouseNumber = addr.house_number;
+            const road = addr.road || addr.pedestrian || '';
+            pickupInput.value = 'Số nhà ' + addr.house_number + (road ? (', ' + road) : '') + (data.display_name ? (' - ' + data.display_name) : '');
+          } else {
+            pickupInput.value = data.display_name || (lat.toFixed(5) + ', ' + lon.toFixed(5));
+          }
         } catch (err) {
           pickupInput.value = lat.toFixed(5) + ', ' + lon.toFixed(5);
         }
         localStorage.setItem('xn_last_pickup', pickupInput.value);
+        localStorage.setItem('xn_last_pickup_house_number', lastPickupHouseNumber);
         pickupInput.placeholder = originalPlaceholder;
       },
       (err) => {
@@ -1940,6 +1950,7 @@
           originalPrice: originalPrice,
           discountApplied: discountAppliedText,
           pickupLat: lastGpsCoords ? lastGpsCoords.lat : null,
+          pickupHouseNumber: lastPickupHouseNumber || '',
           pickupLng: lastGpsCoords ? lastGpsCoords.lon : null,
           pickupMapUrl: mapUrl,
           packageDesc: packageDesc,
@@ -1951,8 +1962,9 @@
         });
         localStorage.setItem('xn_last_booking_id', newId);
         if (mapUrl && window.sendMessageToFirestore) {
+          const houseNumberLine = lastPickupHouseNumber ? ('🏠 Số nhà: ' + lastPickupHouseNumber + '\n') : '';
           await window.sendMessageToFirestore(customerId, 'me',
-            '📍 Vị trí đón (định vị GPS): ' + mapUrl, customerName);
+            houseNumberLine + '📍 Vị trí đón (định vị GPS): ' + mapUrl, customerName);
         }
         if (appliedCode && window.markVoucherUsedByCode) {
           await window.markVoucherUsedByCode(customerId, appliedCode);
@@ -2951,6 +2963,7 @@
       discountApplied: data.discountApplied || '',
       pickupLat: data.pickupLat || null,
       pickupLng: data.pickupLng || null,
+      pickupHouseNumber: data.pickupHouseNumber || '',
       pickupMapUrl: data.pickupMapUrl || '',
       packageDesc: data.packageDesc || '',
       receiverName: data.receiverName || '',

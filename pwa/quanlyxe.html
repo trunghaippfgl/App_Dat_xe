@@ -835,7 +835,7 @@
     emptyEl.style.display = 'none';
     let html = '';
     rows.forEach((b) => {
-      const mapLine = b.pickupMapUrl ? '<a class="map-link" href="' + escapeHtml(b.pickupMapUrl) + '" target="_blank">📍 Xem điểm đón trên bản đồ</a><br>' : '';
+      const mapLine = b.pickupMapUrl ? ((b.pickupHouseNumber ? '<b style="color:var(--accent-amber);">🏠 Số nhà: ' + escapeHtml(b.pickupHouseNumber) + '</b><br>' : '') + '<a class="map-link" href="' + escapeHtml(b.pickupMapUrl) + '" target="_blank">📍 Xem điểm đón trên bản đồ</a><br>') : '';
       let driverOptions = '<option value="">-- Gán tài xế --</option>';
       driversCache.forEach((d) => {
         const isSelected = b.driverId ? b.driverId === d.id : (b.preferredDriverId === d.id);
