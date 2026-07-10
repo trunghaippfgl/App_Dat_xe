@@ -950,6 +950,35 @@
         </div>
       </div>
 
+      <!-- ENTERTAINMENT DETAIL MODAL -->
+      <div id="entertainment-detail-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:200; align-items:flex-end; justify-content:center;" onclick="if(event.target===this) closeEntertainmentDetail();">
+        <div style="background:var(--surface-800); border-radius:22px 22px 0 0; width:100%; max-width:420px; max-height:85vh; overflow-y:auto; padding-bottom:20px; position:relative;">
+          <div onclick="closeEntertainmentDetail()" style="position:absolute; top:14px; right:14px; width:34px; height:34px; border-radius:50%; background:rgba(0,0,0,0.45); color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; z-index:2;">✕</div>
+          <div id="ent-detail-photo" style="width:100%; height:230px; background-size:cover; background-position:center; background-color:var(--surface-700); border-radius:22px 22px 0 0; display:flex; align-items:center; justify-content:center; font-size:60px;"></div>
+          <div style="padding:18px 20px 0;">
+            <div style="font-size:19px; font-weight:800; color:var(--text-fog);" id="ent-detail-name"></div>
+            <div style="font-size:13px; color:var(--text-muted); margin-top:6px;" id="ent-detail-category-address"></div>
+            <div style="font-size:14px; color:var(--text-muted); margin-top:10px; line-height:1.5;" id="ent-detail-desc"></div>
+            <a href="#" id="ent-detail-call-btn" style="text-decoration:none; display:block; margin-top:18px;">
+              <button class="btn-full" style="margin-top:0;">📞 Gọi điện</button>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLINIC DETAIL MODAL -->
+      <div id="clinic-detail-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:200; align-items:flex-end; justify-content:center;" onclick="if(event.target===this) closeClinicDetail();">
+        <div style="background:var(--surface-800); border-radius:22px 22px 0 0; width:100%; max-width:420px; max-height:85vh; overflow-y:auto; padding-bottom:20px; position:relative;">
+          <div onclick="closeClinicDetail()" style="position:absolute; top:14px; right:14px; width:34px; height:34px; border-radius:50%; background:rgba(0,0,0,0.45); color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; z-index:2;">✕</div>
+          <div id="clinic-detail-photo" style="width:100%; height:230px; background-size:cover; background-position:center; background-color:var(--surface-700); border-radius:22px 22px 0 0; display:flex; align-items:center; justify-content:center; font-size:60px;"></div>
+          <div style="padding:18px 20px 0;">
+            <div style="font-size:19px; font-weight:800; color:var(--text-fog);" id="clinic-detail-name"></div>
+            <div style="font-size:13px; color:var(--text-muted); margin-top:6px;" id="clinic-detail-address"></div>
+            <button class="btn-full" onclick="proceedToBookAppointment()">📅 Đặt lịch khám</button>
+          </div>
+        </div>
+      </div>
+
       <!-- SCREEN: ĐẶT LỊCH KHÁM -->
       <div class="screen" id="screen-book-appointment">
         <div class="thread-header">
@@ -2362,19 +2391,59 @@
     emptyEl.style.display = 'none';
     let html = '';
     rows.forEach((e) => {
-      const photoBlock = e.photoBase64 ? '<div style="width:100%;height:120px;border-radius:10px;background-image:url(' + e.photoBase64 + ');background-size:cover;background-position:center;margin-bottom:8px;"></div>' : '';
-      html += '<div class="card" style="margin-bottom:10px;">' +
-        photoBlock +
-        '<div class="card-name">' + escapeHtml(e.name || '') + '</div>' +
-        '<div class="card-sub">' + escapeHtml(e.category || '') + ' · ' + escapeHtml(e.address || '') + '</div>' +
-        (e.description ? '<div class="card-sub" style="margin-top:4px;">' + escapeHtml(e.description) + '</div>' : '') +
-        (e.phone ? '<div class="card-actions"><a href="tel:' + escapeHtml(e.phone) + '" style="text-decoration:none;"><button class="locate-btn" style="width:auto;padding:8px 14px;">📞 Gọi ' + escapeHtml(e.phone) + '</button></a></div>' : '') +
+      const thumbStyle = e.photoBase64 ? ' style="width:56px;height:56px;font-size:20px;background-image:url(' + e.photoBase64 + ');background-size:cover;background-position:center;"' : ' style="width:56px;height:56px;font-size:20px;"';
+      const emojiMap = { 'Cafe': '☕', 'Karaoke': '🎤', 'Massage/Vật lý trị liệu': '💆' };
+      html += '<div class="driver-list-card" style="cursor:pointer;" onclick="openEntertainmentDetail(\'' + e.id + '\')">' +
+        '<div class="avatar"' + thumbStyle + '>' + (e.photoBase64 ? '' : (emojiMap[e.category] || '📍')) + '</div>' +
+        '<div class="driver-list-info"><div class="driver-list-name">' + escapeHtml(e.name || '') + '</div>' +
+        '<div class="driver-list-car">' + escapeHtml(e.category || '') + ' · ' + escapeHtml(e.address || '') + '</div></div>' +
         '</div>';
     });
     container.innerHTML = html;
   }
 
   /* ---------- SỨC KHỎE ---------- */
+  function openEntertainmentDetail(id){
+    const item = entertainmentCache.find(e => e.id === id);
+    if (!item) return;
+    const photoEl = document.getElementById('ent-detail-photo');
+    const emojiMap = { 'Cafe': '☕', 'Karaoke': '🎤', 'Massage/Vật lý trị liệu': '💆' };
+    if (item.photoBase64) { photoEl.style.backgroundImage = 'url(' + item.photoBase64 + ')'; photoEl.textContent = ''; }
+    else { photoEl.style.backgroundImage = 'none'; photoEl.textContent = emojiMap[item.category] || '📍'; }
+    document.getElementById('ent-detail-name').textContent = item.name || '';
+    document.getElementById('ent-detail-category-address').textContent = (item.category || '') + ' · ' + (item.address || '');
+    document.getElementById('ent-detail-desc').textContent = item.description || '';
+    const callBtn = document.getElementById('ent-detail-call-btn');
+    if (item.phone) { callBtn.href = 'tel:' + item.phone; callBtn.style.display = 'block'; }
+    else { callBtn.style.display = 'none'; }
+    document.getElementById('entertainment-detail-overlay').style.display = 'flex';
+  }
+  function closeEntertainmentDetail(){
+    document.getElementById('entertainment-detail-overlay').style.display = 'none';
+  }
+
+  let currentClinicDetailId = null;
+  let currentClinicDetailName = '';
+  function openClinicDetail(id){
+    const clinic = clinicsBrowseCache.find(c => c.id === id);
+    if (!clinic) return;
+    currentClinicDetailId = id;
+    currentClinicDetailName = clinic.name || '';
+    const photoEl = document.getElementById('clinic-detail-photo');
+    if (clinic.photoBase64) { photoEl.style.backgroundImage = 'url(' + clinic.photoBase64 + ')'; photoEl.textContent = ''; }
+    else { photoEl.style.backgroundImage = 'none'; photoEl.textContent = '🏥'; }
+    document.getElementById('clinic-detail-name').textContent = clinic.name || '';
+    document.getElementById('clinic-detail-address').textContent = clinic.address || '';
+    document.getElementById('clinic-detail-overlay').style.display = 'flex';
+  }
+  function closeClinicDetail(){
+    document.getElementById('clinic-detail-overlay').style.display = 'none';
+  }
+  function proceedToBookAppointment(){
+    closeClinicDetail();
+    openBookAppointment(currentClinicDetailId, currentClinicDetailName);
+  }
+
   let clinicsBrowseCache = [];
   async function openClinicsScreen(){
     openSubScreen('screen-clinics');
@@ -2398,7 +2467,7 @@
     let html = '';
     clinicsBrowseCache.forEach((c) => {
       const avatarStyle = c.photoBase64 ? ' style="width:46px;height:46px;font-size:20px;background-image:url(' + c.photoBase64 + ');background-size:cover;background-position:center;"' : ' style="width:46px;height:46px;font-size:20px;"';
-      html += '<div class="driver-list-card" style="cursor:pointer;" onclick="openBookAppointment(\'' + c.id + '\', \'' + escapeHtml((c.name||'').replace(/'/g,'')) + '\')">' +
+      html += '<div class="driver-list-card" style="cursor:pointer;" onclick="openClinicDetail(\'' + c.id + '\')">' +
         '<div class="avatar"' + avatarStyle + '>' + (c.photoBase64 ? '' : '🏥') + '</div>' +
         '<div class="driver-list-info"><div class="driver-list-name">' + escapeHtml(c.name || '') + '</div>' +
         '<div class="driver-list-car">' + escapeHtml(c.address || '') + '</div></div>' +
