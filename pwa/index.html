@@ -586,6 +586,7 @@
             <div class="quick-chip" onclick="openFoodStores()">🍜 Đặt đồ ăn</div>
             <div class="quick-chip" onclick="openEntertainmentScreen()">🎉 Giải trí</div>
             <div class="quick-chip" onclick="openClinicsScreen()">🏥 Sức khỏe</div>
+            <div class="quick-chip" onclick="openBeautyScreen()">💅 Làm đẹp</div>
           </div>
 
           <div class="section-label">Đặt tuyến khác / đi xa</div>
@@ -816,6 +817,7 @@
             <div class="menu-item" onclick="openSubScreen('screen-vouchers')"><span>🎁 Voucher khuyến mãi <span class="menu-badge" id="voucher-menu-badge" style="display:none;"></span></span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openFoodOrdersScreen()"><span>🍜 Đơn đồ ăn của tôi</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openMyAppointmentsScreen()"><span>📅 Lịch hẹn khám của tôi</span><span class="arrow">›</span></div>
+            <div class="menu-item" onclick="openMyBeautyAppointmentsScreen()"><span>💅 Lịch hẹn làm đẹp của tôi</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openSubScreen('screen-favorite-drivers')"><span>Tài xế yêu thích</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openSubScreen('screen-history')"><span>Lịch sử chuyến đi</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openSubScreen('screen-payment-method')"><span>Phương thức thanh toán</span><span class="arrow">›</span></div>
@@ -1018,6 +1020,76 @@
         <div class="scroll" style="padding-top:14px;">
           <div id="my-appointments-list"></div>
           <div class="empty-state" id="my-appointments-empty" style="display:none;">Bạn chưa đặt lịch khám nào.</div>
+        </div>
+      </div>
+
+      <!-- SCREEN: LÀM ĐẸP - DANH SÁCH -->
+      <div class="screen" id="screen-beauty">
+        <div class="thread-header">
+          <div class="back-btn" onclick="closeThread()">←</div>
+          <div class="thread-title">Làm đẹp</div>
+        </div>
+        <div class="scroll" style="padding-top:14px;">
+          <div id="beauty-browse-list"></div>
+          <div class="empty-state" id="beauty-browse-empty" style="display:none;">Chưa có cửa hàng làm đẹp nào trên Xe Nhà.</div>
+        </div>
+      </div>
+
+      <!-- BEAUTY SHOP DETAIL MODAL -->
+      <div id="beauty-detail-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:200; align-items:flex-end; justify-content:center;" onclick="if(event.target===this) closeBeautyDetail();">
+        <div style="background:var(--surface-800); border-radius:22px 22px 0 0; width:100%; max-width:420px; max-height:88vh; overflow-y:auto; padding-bottom:20px; position:relative;">
+          <div onclick="closeBeautyDetail()" style="position:absolute; top:14px; right:14px; width:34px; height:34px; border-radius:50%; background:rgba(0,0,0,0.45); color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; z-index:2;">✕</div>
+          <video id="beauty-detail-video" controls style="width:100%; max-height:230px; background:#000; display:none;"></video>
+          <div id="beauty-detail-photo" style="width:100%; height:230px; background-size:cover; background-position:center; background-color:var(--surface-700); display:flex; align-items:center; justify-content:center; font-size:60px;"></div>
+          <div style="padding:18px 20px 0;">
+            <div style="font-size:19px; font-weight:800; color:var(--text-fog);" id="beauty-detail-name"></div>
+            <div style="font-size:13px; color:var(--text-muted); margin-top:6px;" id="beauty-detail-category-address"></div>
+            <div class="card-name" style="margin-top:18px; margin-bottom:8px;">Bảng giá dịch vụ</div>
+            <div id="beauty-detail-services-list"></div>
+            <button class="btn-full" onclick="proceedToBookBeauty()">📅 Đặt lịch làm đẹp</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCREEN: ĐẶT LỊCH LÀM ĐẸP -->
+      <div class="screen" id="screen-book-beauty">
+        <div class="thread-header">
+          <div class="back-btn" onclick="openBeautyScreen()">←</div>
+          <div class="thread-title" id="beauty-booking-shop-name">Đặt lịch làm đẹp</div>
+        </div>
+        <div class="scroll" style="padding-top:14px;">
+          <div class="field">
+            <span class="field-label">Chọn dịch vụ *</span>
+            <div class="field-input">
+              <select id="beauty-booking-service-select" class="native-input"></select>
+            </div>
+          </div>
+          <div class="field">
+            <span class="field-label">Ngày mong muốn *</span>
+            <div class="field-input"><input type="date" id="beauty-booking-date-input" class="native-input"></div>
+          </div>
+          <div class="field">
+            <span class="field-label">Giờ mong muốn *</span>
+            <div class="field-input"><input type="time" id="beauty-booking-time-input" class="native-input"></div>
+          </div>
+          <div class="field">
+            <span class="field-label">Ghi chú (tuỳ chọn)</span>
+            <div class="field-input"><input type="text" id="beauty-booking-note-input" class="native-input" placeholder="VD: Yêu cầu riêng..."></div>
+          </div>
+          <div class="hint-line" style="text-align:left;">Sau khi gửi, cửa hàng sẽ gọi lại để xác nhận giờ hẹn cụ thể.</div>
+          <button class="btn-full" onclick="submitBeautyAppointment()">Gửi yêu cầu đặt lịch</button>
+        </div>
+      </div>
+
+      <!-- SCREEN: LỊCH HẸN LÀM ĐẸP CỦA TÔI -->
+      <div class="screen" id="screen-my-beauty-appointments">
+        <div class="thread-header">
+          <div class="back-btn" onclick="closeThread()">←</div>
+          <div class="thread-title">Lịch hẹn làm đẹp của tôi</div>
+        </div>
+        <div class="scroll" style="padding-top:14px;">
+          <div id="my-beauty-appointments-list"></div>
+          <div class="empty-state" id="my-beauty-appointments-empty" style="display:none;">Bạn chưa đặt lịch làm đẹp nào.</div>
         </div>
       </div>
 
@@ -2456,6 +2528,158 @@
     openBookAppointment(currentClinicDetailId, currentClinicDetailName);
   }
 
+  /* ---------- LÀM ĐẸP ---------- */
+  let beautyBrowseCache = [];
+  let beautyServicesCache = [];
+  async function openBeautyScreen(){
+    openSubScreen('screen-beauty');
+    const ready = await waitForFirebaseReady();
+    if (ready && window.getApprovedBeautyShops) {
+      try {
+        beautyBrowseCache = await window.getApprovedBeautyShops();
+        renderBeautyBrowseList();
+      } catch (err) { console.error(err); }
+    }
+  }
+  function renderBeautyBrowseList(){
+    const container = document.getElementById('beauty-browse-list');
+    const emptyEl = document.getElementById('beauty-browse-empty');
+    if (beautyBrowseCache.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    const emojiMap = { 'Salon tóc': '💇', 'Spa / Chăm sóc da': '🧖', 'Nail': '💅', 'Trang điểm': '💄' };
+    let html = '';
+    beautyBrowseCache.forEach((s) => {
+      const avatarStyle = s.photoBase64 ? ' style="width:46px;height:46px;font-size:20px;background-image:url(' + s.photoBase64 + ');background-size:cover;background-position:center;"' : ' style="width:46px;height:46px;font-size:20px;"';
+      html += '<div class="driver-list-card" style="cursor:pointer;" onclick="openBeautyDetail(\'' + s.id + '\')">' +
+        '<div class="avatar"' + avatarStyle + '>' + (s.photoBase64 ? '' : (emojiMap[s.category] || '💅')) + '</div>' +
+        '<div class="driver-list-info"><div class="driver-list-name">' + escapeHtml(s.name || '') + (s.videoUrl ? ' 🎬' : '') + '</div>' +
+        '<div class="driver-list-car">' + escapeHtml(s.category || '') + ' · ' + escapeHtml(s.address || '') + '</div></div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+
+  let currentBeautyDetailId = null;
+  let currentBeautyDetailName = '';
+  async function openBeautyDetail(id){
+    const shop = beautyBrowseCache.find(s => s.id === id);
+    if (!shop) return;
+    currentBeautyDetailId = id;
+    currentBeautyDetailName = shop.name || '';
+    const videoEl = document.getElementById('beauty-detail-video');
+    const photoEl = document.getElementById('beauty-detail-photo');
+    if (shop.videoUrl) {
+      videoEl.src = shop.videoUrl;
+      videoEl.style.display = 'block';
+      photoEl.style.display = 'none';
+    } else {
+      videoEl.style.display = 'none';
+      photoEl.style.display = 'flex';
+      if (shop.photoBase64) { photoEl.style.backgroundImage = 'url(' + shop.photoBase64 + ')'; photoEl.textContent = ''; }
+      else { photoEl.style.backgroundImage = 'none'; photoEl.textContent = '💅'; }
+    }
+    document.getElementById('beauty-detail-name').textContent = shop.name || '';
+    document.getElementById('beauty-detail-category-address').textContent = (shop.category || '') + ' · ' + (shop.address || '');
+    const servicesListEl = document.getElementById('beauty-detail-services-list');
+    servicesListEl.innerHTML = '<div style="font-size:12.5px;color:var(--text-muted);">Đang tải bảng giá...</div>';
+    document.getElementById('beauty-detail-overlay').style.display = 'flex';
+
+    const ready = await waitForFirebaseReady();
+    if (ready && window.getBeautyServices) {
+      try {
+        beautyServicesCache = await window.getBeautyServices(id);
+        if (beautyServicesCache.length === 0) {
+          servicesListEl.innerHTML = '<div style="font-size:12.5px;color:var(--text-muted);">Cửa hàng chưa đăng dịch vụ nào.</div>';
+        } else {
+          servicesListEl.innerHTML = beautyServicesCache.map(sv =>
+            '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-steel);">' +
+            '<div><b>' + escapeHtml(sv.name) + '</b>' + (sv.description ? '<div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(sv.description) + '</div>' : '') + '</div>' +
+            '<div style="font-weight:700;color:var(--accent-amber);white-space:nowrap;">' + formatVnd(sv.price) + '</div></div>'
+          ).join('');
+        }
+      } catch (err) { console.error(err); }
+    }
+  }
+  function closeBeautyDetail(){
+    document.getElementById('beauty-detail-overlay').style.display = 'none';
+    document.getElementById('beauty-detail-video').pause();
+  }
+  function proceedToBookBeauty(){
+    closeBeautyDetail();
+    document.getElementById('beauty-booking-shop-name').textContent = currentBeautyDetailName;
+    document.getElementById('beauty-booking-note-input').value = '';
+    document.getElementById('beauty-booking-date-input').value = '';
+    document.getElementById('beauty-booking-time-input').value = '';
+    const selectEl = document.getElementById('beauty-booking-service-select');
+    if (beautyServicesCache.length === 0) {
+      selectEl.innerHTML = '<option value="">Chưa chọn dịch vụ cụ thể</option>';
+    } else {
+      selectEl.innerHTML = beautyServicesCache.map(sv => '<option value="' + escapeHtml(sv.name) + '">' + escapeHtml(sv.name) + ' - ' + formatVnd(sv.price) + '</option>').join('');
+    }
+    openSubScreen('screen-book-beauty');
+  }
+
+  async function submitBeautyAppointment(){
+    const serviceName = document.getElementById('beauty-booking-service-select').value;
+    const preferredDate = document.getElementById('beauty-booking-date-input').value;
+    const preferredTime = document.getElementById('beauty-booking-time-input').value;
+    const note = document.getElementById('beauty-booking-note-input').value.trim();
+    if (!preferredDate || !preferredTime) { alert('Bạn chọn ngày và giờ mong muốn trước nhé.'); return; }
+    const customerId = localStorage.getItem('xn_customer_id');
+    const customerName = localStorage.getItem('xn_customer_name') || 'Khách';
+    const customerPhone = localStorage.getItem('xn_customer_phone') || '';
+    if (!customerId) { alert('Bạn cần hoàn tất đăng ký trước.'); return; }
+    const ready = await waitForFirebaseReady();
+    if (ready && window.createBeautyAppointment) {
+      try {
+        await window.createBeautyAppointment({
+          shopId: currentBeautyDetailId, shopName: currentBeautyDetailName,
+          serviceName, preferredDate, preferredTime, note,
+          customerId, customerName, customerPhone
+        });
+        alert('Đã gửi yêu cầu đặt lịch! Cửa hàng sẽ gọi lại để xác nhận giờ hẹn cụ thể.');
+        openMyBeautyAppointmentsScreen();
+      } catch (err) { console.error(err); alert('Có lỗi khi gửi yêu cầu, thử lại nhé.'); }
+    }
+  }
+
+  async function openMyBeautyAppointmentsScreen(){
+    openSubScreen('screen-my-beauty-appointments');
+    const customerId = localStorage.getItem('xn_customer_id');
+    if (!customerId) return;
+    const ready = await waitForFirebaseReady();
+    if (ready && window.listenForMyBeautyAppointments) window.listenForMyBeautyAppointments(customerId);
+  }
+  function beautyAppointmentStatusLabel(status){
+    const map = { pending: 'Chờ cửa hàng xác nhận', confirmed: 'Đã xác nhận', cancelled: 'Đã hủy' };
+    return map[status] || status;
+  }
+  function renderMyBeautyAppointments(appointments){
+    const container = document.getElementById('my-beauty-appointments-list');
+    const emptyEl = document.getElementById('my-beauty-appointments-empty');
+    if (!appointments || appointments.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    appointments.forEach((a) => {
+      html += '<div class="card" style="margin-bottom:10px;">' +
+        '<div class="item-row" style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+        '<div><div class="card-name">' + escapeHtml(a.shopName || '') + '</div>' +
+        '<div class="card-sub">💅 ' + escapeHtml(a.serviceName || 'Chưa chọn dịch vụ') + '</div>' +
+        '<div class="card-sub">🗓 ' + escapeHtml(a.preferredDate || '') + ' · ' + escapeHtml(a.preferredTime || '') + '</div></div>' +
+        '<div class="ticket-status ' + (a.status === 'confirmed' ? 'confirmed' : (a.status === 'cancelled' ? '' : 'pending')) + '" style="font-size:11px;">' + beautyAppointmentStatusLabel(a.status) + '</div>' +
+        '</div></div>';
+    });
+    container.innerHTML = html;
+  }
+
   let clinicsBrowseCache = [];
   async function openClinicsScreen(){
     openSubScreen('screen-clinics');
@@ -3034,6 +3258,50 @@
   };
 
   /* ---------- SỨC KHỎE ---------- */
+  /* ---------- LÀM ĐẸP ---------- */
+  window.getApprovedBeautyShops = async function(){
+    const q = query(collection(db, "beautyShops"), where("status", "==", "approved"));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+
+  window.getBeautyServices = async function(shopId){
+    const q = query(collection(db, "beautyServices"), where("shopId", "==", shopId));
+    const snap = await getDocs(q);
+    const services = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    services.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    return services;
+  };
+
+  window.createBeautyAppointment = async function(data){
+    await addDoc(collection(db, "beautyAppointments"), {
+      shopId: data.shopId,
+      shopName: data.shopName,
+      serviceName: data.serviceName || '',
+      preferredDate: data.preferredDate,
+      preferredTime: data.preferredTime,
+      note: data.note || '',
+      customerId: data.customerId,
+      customerName: data.customerName,
+      customerPhone: data.customerPhone,
+      status: 'pending',
+      createdAt: serverTimestamp()
+    });
+  };
+
+  window.listenForMyBeautyAppointments = function(customerId){
+    const q = query(collection(db, "beautyAppointments"), where("customerId", "==", customerId));
+    onSnapshot(q, (snap) => {
+      const appointments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      appointments.sort((a, b) => {
+        const at = (a.createdAt && a.createdAt.toMillis) ? a.createdAt.toMillis() : 0;
+        const bt = (b.createdAt && b.createdAt.toMillis) ? b.createdAt.toMillis() : 0;
+        return bt - at;
+      });
+      if (window.renderMyBeautyAppointments) window.renderMyBeautyAppointments(appointments);
+    });
+  };
+
   window.getApprovedClinics = async function(){
     const q = query(collection(db, "clinics"), where("status", "==", "approved"));
     const snap = await getDocs(q);

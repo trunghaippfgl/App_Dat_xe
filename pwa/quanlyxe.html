@@ -179,6 +179,7 @@
     <div class="tab-btn" id="tab-stores" onclick="switchTab('stores'); if(window.renderStoresList) renderStoresList();">Cửa hàng</div>
     <div class="tab-btn" id="tab-entertainment" onclick="switchTab('entertainment')">Giải trí</div>
     <div class="tab-btn" id="tab-clinics" onclick="switchTab('clinics'); if(window.renderClinicsList) renderClinicsList();">Phòng khám</div>
+    <div class="tab-btn" id="tab-beauty" onclick="switchTab('beauty'); if(window.renderBeautyShopsList) renderBeautyShopsList();">Làm đẹp</div>
     <div class="tab-btn" id="tab-settings" onclick="switchTab('settings')">Cài đặt</div>
   </div>
 
@@ -338,6 +339,50 @@
       </div>
       <div id="clinics-list"></div>
       <div class="empty-state" id="clinics-empty" style="display:none;">Chưa có phòng khám nào đăng ký.</div>
+    </div>
+  </div>
+
+  <!-- BEAUTY SHOPS PANEL -->
+  <div class="panel" id="panel-beauty">
+    <div class="scroll">
+      <button class="btn-tiny" style="margin-bottom:12px;" onclick="openBeautyModal()">+ Thêm cửa hàng làm đẹp mới</button>
+      <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+        <div class="chip on" data-beautyfilter="pending" onclick="setBeautyFilter('pending')">Chờ duyệt</div>
+        <div class="chip" data-beautyfilter="approved" onclick="setBeautyFilter('approved')">Đã duyệt</div>
+        <div class="chip" data-beautyfilter="rejected" onclick="setBeautyFilter('rejected')">Đã từ chối</div>
+        <div class="chip" data-beautyfilter="all" onclick="setBeautyFilter('all')">Tất cả</div>
+      </div>
+      <div id="beauty-list"></div>
+      <div class="empty-state" id="beauty-empty" style="display:none;">Chưa có cửa hàng làm đẹp nào đăng ký.</div>
+    </div>
+  </div>
+
+  <!-- BEAUTY SHOP ADD/EDIT MODAL -->
+  <div id="beauty-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--surface-800); border:1px solid var(--border-steel); border-radius:16px; padding:20px; width:100%; max-width:400px; max-height:88vh; overflow-y:auto;">
+      <div style="font-size:15px; font-weight:700; margin-bottom:14px;" id="beauty-modal-title">Thêm cửa hàng làm đẹp</div>
+      <input type="hidden" id="beauty-modal-id">
+      <div id="beauty-modal-photo-picker" onclick="document.getElementById('beauty-modal-photo-input').click()" style="width:100%;height:130px;border-radius:12px;background:var(--bg-asphalt-900);border:1px dashed var(--border-steel);display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer;margin-bottom:14px;background-size:cover;background-position:center;color:var(--text-dim);">📷 Ảnh đại diện</div>
+      <input type="file" id="beauty-modal-photo-input" accept="image/*" style="display:none;" onchange="handleBeautyModalPhoto(this)">
+      <div style="margin-bottom:10px;"><input type="text" id="beauty-modal-name" placeholder="Tên cửa hàng" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
+      <div style="margin-bottom:10px;">
+        <select id="beauty-modal-category" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;font-family:inherit;">
+          <option value="Salon tóc">Salon tóc</option>
+          <option value="Spa / Chăm sóc da">Spa / Chăm sóc da</option>
+          <option value="Nail">Nail</option>
+          <option value="Trang điểm">Trang điểm</option>
+          <option value="Khác">Khác</option>
+        </select>
+      </div>
+      <div style="margin-bottom:10px;"><input type="text" id="beauty-modal-owner" placeholder="Tên chủ quán" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
+      <div style="margin-bottom:10px;"><input type="text" id="beauty-modal-phone" placeholder="Số điện thoại" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
+      <div style="margin-bottom:10px;"><input type="text" id="beauty-modal-address" placeholder="Địa chỉ" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
+      <div class="hint-line" style="text-align:left; margin-bottom:10px;">Chủ quán tự đặt mật khẩu khi đăng nhập lần đầu tại app "Đối tác Làm đẹp".</div>
+      <div class="card-actions">
+        <button class="btn-tiny ghost" onclick="closeBeautyModal()">Hủy</button>
+        <button class="btn-tiny" onclick="saveBeautyFromAdmin()">Lưu</button>
+        <button class="btn-tiny red" id="beauty-modal-delete-btn" style="display:none;" onclick="deleteBeautyFromAdmin()">Xóa</button>
+      </div>
     </div>
   </div>
 
@@ -2090,6 +2135,137 @@
     deleteDoc(doc(db, "clinics", id)).then(() => closeClinicModal()).catch((err) => { console.error(err); alert('Có lỗi khi xóa.'); });
   };
 
+  /* ---------- LÀM ĐẸP ---------- */
+  let beautyCache = [];
+  let beautyFilter = 'pending';
+  function listenForBeautyShops(){
+    onSnapshot(collection(db, "beautyShops"), (snap) => {
+      beautyCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderBeautyShopsList();
+    });
+  }
+  window.setBeautyFilter = function(filter){
+    beautyFilter = filter;
+    document.querySelectorAll('[data-beautyfilter]').forEach(c => c.classList.toggle('on', c.dataset.beautyfilter === filter));
+    renderBeautyShopsList();
+  };
+  window.renderBeautyShopsList = function(){
+    const container = document.getElementById('beauty-list');
+    const emptyEl = document.getElementById('beauty-empty');
+    if (!container) return;
+    const rows = beautyFilter === 'all' ? beautyCache : beautyCache.filter(c => (c.status || 'pending') === beautyFilter);
+    if (rows.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    rows.forEach((s) => {
+      const status = s.status || 'pending';
+      const statusLabelMap = { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Đã từ chối' };
+      const statusColorMap = { pending: 'var(--accent-amber)', approved: 'var(--route-green)', rejected: 'var(--alert-red)' };
+      let actions = '';
+      if (status === 'pending') {
+        actions = '<button class="btn-tiny" onclick="approveBeauty(\'' + s.id + '\')">✓ Duyệt</button>' +
+          '<button class="btn-tiny red" onclick="rejectBeauty(\'' + s.id + '\')">Từ chối</button>';
+      } else if (status === 'approved') {
+        actions = '<button class="btn-tiny red" onclick="rejectBeauty(\'' + s.id + '\')">Khóa cửa hàng</button>';
+      } else if (status === 'rejected') {
+        actions = '<button class="btn-tiny" onclick="approveBeauty(\'' + s.id + '\')">✓ Duyệt lại</button>';
+      }
+      const videoIndicator = s.videoUrl ? ' 🎬' : '';
+      html += '<div class="card">' +
+        '<div class="card-top"><div><div class="card-name">' + escapeHtml(s.name || '') + videoIndicator + '</div>' +
+        '<div class="card-time">' + escapeHtml(s.category || '') + ' · ' + escapeHtml(s.ownerName || '') + ' · ' + escapeHtml(s.phone || '') + '</div></div>' +
+        '<div style="font-size:10.5px;font-weight:800;padding:4px 10px;border-radius:100px;white-space:nowrap;background:rgba(255,255,255,0.06);color:' + statusColorMap[status] + ';">' + statusLabelMap[status] + '</div></div>' +
+        '<div class="card-route">📍 ' + escapeHtml(s.address || '') + '</div>' +
+        '<div class="card-actions">' + actions + '</div>' +
+        '<div class="card-actions">' +
+        '<button class="btn-tiny ghost" onclick="openBeautyModal(\'' + s.id + '\')">✏️ Sửa</button>' +
+        '<button class="btn-tiny red" onclick="confirmDeleteBeauty(\'' + s.id + '\')">🗑 Xóa</button>' +
+        '</div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  };
+  window.approveBeauty = async function(id){
+    try { await setDoc(doc(db, "beautyShops", id), { status: 'approved', updatedAt: serverTimestamp() }, { merge: true }); }
+    catch (err) { console.error(err); alert('Có lỗi khi duyệt.'); }
+  };
+  window.rejectBeauty = async function(id){
+    if (!confirm('Xác nhận từ chối/khóa cửa hàng này?')) return;
+    try { await setDoc(doc(db, "beautyShops", id), { status: 'rejected', updatedAt: serverTimestamp() }, { merge: true }); }
+    catch (err) { console.error(err); alert('Có lỗi khi từ chối.'); }
+  };
+
+  let pendingBeautyModalPhoto = null;
+  window.openBeautyModal = function(id){
+    const shop = id ? beautyCache.find(s => s.id === id) : null;
+    document.getElementById('beauty-modal-title').textContent = shop ? 'Sửa cửa hàng' : 'Thêm cửa hàng làm đẹp mới';
+    document.getElementById('beauty-modal-id').value = shop ? shop.id : '';
+    document.getElementById('beauty-modal-name').value = shop ? (shop.name || '') : '';
+    document.getElementById('beauty-modal-category').value = shop ? (shop.category || 'Salon tóc') : 'Salon tóc';
+    document.getElementById('beauty-modal-owner').value = shop ? (shop.ownerName || '') : '';
+    document.getElementById('beauty-modal-phone').value = shop ? (shop.phone || '') : '';
+    document.getElementById('beauty-modal-address').value = shop ? (shop.address || '') : '';
+    document.getElementById('beauty-modal-delete-btn').style.display = shop ? 'inline-block' : 'none';
+    pendingBeautyModalPhoto = null;
+    const picker = document.getElementById('beauty-modal-photo-picker');
+    if (shop && shop.photoBase64) { picker.style.backgroundImage = 'url(' + shop.photoBase64 + ')'; picker.textContent = ''; }
+    else { picker.style.backgroundImage = 'none'; picker.textContent = '📷 Ảnh đại diện'; }
+    document.getElementById('beauty-modal').style.display = 'flex';
+  };
+  window.handleBeautyModalPhoto = async function(inputEl){
+    const file = inputEl.files && inputEl.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageFile(file, 500, 0.7);
+      pendingBeautyModalPhoto = dataUrl;
+      const picker = document.getElementById('beauty-modal-photo-picker');
+      picker.style.backgroundImage = 'url(' + dataUrl + ')';
+      picker.textContent = '';
+    } catch (err) { console.error(err); alert('Có lỗi khi xử lý ảnh, thử lại nhé.'); }
+  };
+  window.closeBeautyModal = function(){
+    document.getElementById('beauty-modal').style.display = 'none';
+  };
+  window.saveBeautyFromAdmin = async function(){
+    const id = document.getElementById('beauty-modal-id').value;
+    const name = document.getElementById('beauty-modal-name').value.trim();
+    const category = document.getElementById('beauty-modal-category').value;
+    const ownerName = document.getElementById('beauty-modal-owner').value.trim();
+    const phone = normalizePhone(document.getElementById('beauty-modal-phone').value.trim());
+    const address = document.getElementById('beauty-modal-address').value.trim();
+    if (!name || !phone || !address) { alert('Nhập đủ tên, SĐT, địa chỉ nhé.'); return; }
+    try {
+      if (id) {
+        const fields = { name, category, ownerName, phone, address, updatedAt: serverTimestamp() };
+        if (pendingBeautyModalPhoto) fields.photoBase64 = pendingBeautyModalPhoto;
+        await setDoc(doc(db, "beautyShops", id), fields, { merge: true });
+      } else {
+        await addDoc(collection(db, "beautyShops"), {
+          name, category, ownerName, phone, address,
+          photoBase64: pendingBeautyModalPhoto || '',
+          passwordHash: '', status: 'approved', createdAt: serverTimestamp()
+        });
+      }
+      pendingBeautyModalPhoto = null;
+      closeBeautyModal();
+      alert('Đã lưu cửa hàng!');
+    } catch (err) { console.error(err); alert('Có lỗi khi lưu.'); }
+  };
+  window.confirmDeleteBeauty = function(id){
+    if (!confirm('Xóa hẳn cửa hàng này khỏi hệ thống? Không thể hoàn tác.')) return;
+    deleteDoc(doc(db, "beautyShops", id)).catch((err) => { console.error(err); alert('Có lỗi khi xóa.'); });
+  };
+  window.deleteBeautyFromAdmin = function(){
+    const id = document.getElementById('beauty-modal-id').value;
+    if (!id) return;
+    if (!confirm('Xóa hẳn cửa hàng này khỏi hệ thống? Không thể hoàn tác.')) return;
+    deleteDoc(doc(db, "beautyShops", id)).then(() => closeBeautyModal()).catch((err) => { console.error(err); alert('Có lỗi khi xóa.'); });
+  };
+
   /* ---------- BẢO HIỂM ---------- */
   window.setDriverPanelView = function(view){
     document.querySelectorAll('[data-driverview]').forEach(c => c.classList.toggle('on', c.dataset.driverview === view));
@@ -2191,6 +2367,7 @@
   listenForMembershipPlans();
   listenForEntertainment();
   listenForClinics();
+  listenForBeautyShops();
   listenForInsurancePlans();
   listenForInsuranceRequests();
 </script>
