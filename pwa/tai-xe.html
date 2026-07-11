@@ -261,8 +261,15 @@
     document.querySelectorAll('.onboard-screen').forEach(s => s.classList.remove('active'));
     document.getElementById('app-root').style.display = 'flex';
     document.getElementById('driver-name-header').textContent = driver.name || 'Tài xế';
-    document.getElementById('driver-sub-header').textContent = driver.car || '';
+    document.getElementById('driver-sub-header').textContent = (driver.vehicleType === 'motorbike' ? '🏍️ ' : '🚗 ') + (driver.car || '');
     document.getElementById('accepting-toggle').checked = driver.acceptingFoodOrders === true;
+
+    const isMotorbike = driver.vehicleType === 'motorbike';
+    document.getElementById('tab-available').style.display = isMotorbike ? '' : 'none';
+    document.getElementById('accepting-toggle').closest('label').style.display = isMotorbike ? 'inline-block' : 'none';
+    if (!isMotorbike && document.getElementById('tab-available').classList.contains('active')) {
+      switchTab('rides');
+    }
 
     const membership = driverMembershipInfo(driver);
     document.getElementById('membership-status-display').textContent = membership.text;
@@ -286,7 +293,7 @@
       });
     }
 
-    if (window.listenForAvailableOrders) window.listenForAvailableOrders();
+    if (isMotorbike && window.listenForAvailableOrders) window.listenForAvailableOrders();
     if (window.listenForMyOrders) window.listenForMyOrders(currentDriverId);
     if (window.listenForMyRideBookings) window.listenForMyRideBookings(currentDriverId);
     if (window.autoRestoreNotifications) window.autoRestoreNotifications();
