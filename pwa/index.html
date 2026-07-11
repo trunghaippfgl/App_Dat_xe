@@ -1049,6 +1049,8 @@
             <div style="font-size:13px; color:var(--text-muted); margin-top:6px;" id="beauty-detail-category-address"></div>
             <div class="card-name" style="margin-top:18px; margin-bottom:8px;">Bảng giá dịch vụ</div>
             <div id="beauty-detail-services-list"></div>
+            <div class="card-name" style="margin-top:18px; margin-bottom:8px;">Đội ngũ thợ</div>
+            <div id="beauty-detail-staff-list" style="display:flex; gap:12px; overflow-x:auto; padding-bottom:6px;"></div>
             <button class="btn-full" onclick="proceedToBookBeauty()">📅 Đặt lịch làm đẹp</button>
           </div>
         </div>
@@ -1065,6 +1067,12 @@
             <span class="field-label">Chọn dịch vụ *</span>
             <div class="field-input">
               <select id="beauty-booking-service-select" class="native-input"></select>
+            </div>
+          </div>
+          <div class="field">
+            <span class="field-label">Chọn thợ (tuỳ chọn)</span>
+            <div class="field-input">
+              <select id="beauty-booking-staff-select" class="native-input"></select>
             </div>
           </div>
           <div class="field">
@@ -2534,6 +2542,7 @@
   /* ---------- LÀM ĐẸP ---------- */
   let beautyBrowseCache = [];
   let beautyServicesCache = [];
+  let beautyStaffCache = [];
   async function openBeautyScreen(){
     openSubScreen('screen-beauty');
     const ready = await waitForFirebaseReady();
@@ -2606,6 +2615,27 @@
         }
       } catch (err) { console.error(err); }
     }
+
+    const staffListEl = document.getElementById('beauty-detail-staff-list');
+    staffListEl.innerHTML = '<div style="font-size:12.5px;color:var(--text-muted);">Đang tải...</div>';
+    if (ready && window.getBeautyStaff) {
+      try {
+        beautyStaffCache = await window.getBeautyStaff(id);
+        if (beautyStaffCache.length === 0) {
+          staffListEl.innerHTML = '<div style="font-size:12.5px;color:var(--text-muted);">Cửa hàng chưa đăng thông tin thợ.</div>';
+        } else {
+          staffListEl.innerHTML = beautyStaffCache.map(st => {
+            const thumb = st.photoBase64
+              ? '<div style="width:64px;height:64px;border-radius:50%;background-image:url(' + st.photoBase64 + ');background-size:cover;background-position:center;margin:0 auto 6px;"></div>'
+              : '<div style="width:64px;height:64px;border-radius:50%;background:var(--surface-700);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 6px;">💇</div>';
+            return '<div style="text-align:center; min-width:80px; max-width:90px;">' + thumb +
+              '<div style="font-size:12.5px;font-weight:700;color:var(--text-fog);">' + escapeHtml(st.name) + '</div>' +
+              (st.specialty ? '<div style="font-size:11px;color:var(--text-muted);">' + escapeHtml(st.specialty) + '</div>' : '') +
+              '</div>';
+          }).join('');
+        }
+      } catch (err) { console.error(err); }
+    }
   }
   function closeBeautyDetail(){
     document.getElementById('beauty-detail-overlay').style.display = 'none';
@@ -2623,11 +2653,16 @@
     } else {
       selectEl.innerHTML = beautyServicesCache.map(sv => '<option value="' + escapeHtml(sv.name) + '">' + escapeHtml(sv.name) + ' - ' + formatVnd(sv.price) + '</option>').join('');
     }
+    const staffSelectEl = document.getElementById('beauty-booking-staff-select');
+    let staffOptions = '<option value="">Để cửa hàng sắp xếp</option>';
+    beautyStaffCache.forEach(st => { staffOptions += '<option value="' + escapeHtml(st.name) + '">' + escapeHtml(st.name) + (st.specialty ? ' - ' + escapeHtml(st.specialty) : '') + '</option>'; });
+    staffSelectEl.innerHTML = staffOptions;
     openSubScreen('screen-book-beauty');
   }
 
   async function submitBeautyAppointment(){
     const serviceName = document.getElementById('beauty-booking-service-select').value;
+    const staffName = document.getElementById('beauty-booking-staff-select').value;
     const preferredDate = document.getElementById('beauty-booking-date-input').value;
     const preferredTime = document.getElementById('beauty-booking-time-input').value;
     const note = document.getElementById('beauty-booking-note-input').value.trim();
@@ -2641,7 +2676,7 @@
       try {
         await window.createBeautyAppointment({
           shopId: currentBeautyDetailId, shopName: currentBeautyDetailName,
-          serviceName, preferredDate, preferredTime, note,
+          serviceName, staffName, preferredDate, preferredTime, note,
           customerId, customerName, customerPhone
         });
         alert('Đã gửi yêu cầu đặt lịch! Cửa hàng sẽ gọi lại để xác nhận giờ hẹn cụ thể.');
@@ -2676,6 +2711,7 @@
         '<div class="item-row" style="display:flex;justify-content:space-between;align-items:flex-start;">' +
         '<div><div class="card-name">' + escapeHtml(a.shopName || '') + '</div>' +
         '<div class="card-sub">💅 ' + escapeHtml(a.serviceName || 'Chưa chọn dịch vụ') + '</div>' +
+        (a.staffName ? '<div class="card-sub">👤 Thợ: ' + escapeHtml(a.staffName) + '</div>' : '') +
         '<div class="card-sub">🗓 ' + escapeHtml(a.preferredDate || '') + ' · ' + escapeHtml(a.preferredTime || '') + '</div></div>' +
         '<div class="ticket-status ' + (a.status === 'confirmed' ? 'confirmed' : (a.status === 'cancelled' ? '' : 'pending')) + '" style="font-size:11px;">' + beautyAppointmentStatusLabel(a.status) + '</div>' +
         '</div></div>';
@@ -3281,6 +3317,7 @@
       shopId: data.shopId,
       shopName: data.shopName,
       serviceName: data.serviceName || '',
+      staffName: data.staffName || '',
       preferredDate: data.preferredDate,
       preferredTime: data.preferredTime,
       note: data.note || '',
@@ -3290,6 +3327,14 @@
       status: 'pending',
       createdAt: serverTimestamp()
     });
+  };
+
+  window.getBeautyStaff = async function(shopId){
+    const q = query(collection(db, "beautyStaff"), where("shopId", "==", shopId));
+    const snap = await getDocs(q);
+    const staff = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    staff.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    return staff;
   };
 
   window.listenForMyBeautyAppointments = function(customerId){

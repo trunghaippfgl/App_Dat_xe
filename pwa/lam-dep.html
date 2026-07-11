@@ -187,6 +187,7 @@
   <div class="tabs">
     <div class="tab-btn active" id="tab-appointments" onclick="switchTab('appointments')">Lịch hẹn</div>
     <div class="tab-btn" id="tab-services" onclick="switchTab('services')">Dịch vụ</div>
+    <div class="tab-btn" id="tab-staff" onclick="switchTab('staff')">Thợ</div>
     <div class="tab-btn" id="tab-ads" onclick="switchTab('ads')">🎬 Quảng cáo</div>
     <div class="tab-btn" id="tab-settings" onclick="switchTab('settings')">Cài đặt</div>
   </div>
@@ -213,6 +214,16 @@
       <div class="empty-state" id="services-empty" style="display:none;">Chưa có dịch vụ nào. Bấm nút + để thêm.</div>
     </div>
     <button class="fab" onclick="openServiceModal()">+</button>
+  </div>
+
+  <!-- STAFF PANEL -->
+  <div class="panel" id="panel-staff" style="position:relative;">
+    <div class="scroll">
+      <div class="card-sub" style="margin-bottom:10px;">Danh sách thợ để khách xem thông tin và chọn khi đặt lịch.</div>
+      <div id="staff-list"></div>
+      <div class="empty-state" id="staff-empty" style="display:none;">Chưa có thợ nào. Bấm nút + để thêm.</div>
+    </div>
+    <button class="fab" onclick="openStaffModal()">+</button>
   </div>
 
   <!-- ADS / VIDEO PANEL -->
@@ -265,6 +276,29 @@
         </div>
         <button class="btn-tiny ghost" onclick="changeShopPassword()">Cập nhật mật khẩu</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- STAFF MODAL -->
+<div class="modal-overlay" id="staff-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="staff-modal-title">Thêm thợ</div>
+    <input type="hidden" id="staff-id">
+    <div id="staff-photo-picker" onclick="document.getElementById('staff-photo-input').click()" style="width:100%;height:130px;border-radius:12px;background:var(--bg-asphalt-900);border:1px dashed var(--border-steel);display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer;margin-bottom:14px;background-size:cover;background-position:center;color:var(--text-dim);">📷 Ảnh thợ</div>
+    <input type="file" id="staff-photo-input" accept="image/*" style="display:none;" onchange="handleStaffPhoto(this)">
+    <div class="field">
+      <span class="field-label">Tên thợ *</span>
+      <input type="text" id="staff-name" class="native-input" placeholder="VD: Anh Tuấn">
+    </div>
+    <div class="field">
+      <span class="field-label">Chuyên môn / Mô tả (tuỳ chọn)</span>
+      <input type="text" id="staff-specialty" class="native-input" placeholder="VD: Chuyên cắt tóc nam, tạo kiểu">
+    </div>
+    <div class="card-actions">
+      <button class="btn-tiny ghost" onclick="closeStaffModal()">Hủy</button>
+      <button class="btn-tiny" onclick="saveStaff()">Lưu</button>
+      <button class="btn-tiny red" id="staff-delete-btn" style="display:none;" onclick="deleteStaff()">Xóa</button>
     </div>
   </div>
 </div>
@@ -387,6 +421,7 @@
     else { videoEl.style.display = 'none'; videoEmptyEl.style.display = 'block'; }
 
     if (window.listenForServices) window.listenForServices(currentShopId);
+    if (window.listenForStaff) window.listenForStaff(currentShopId);
     if (window.listenForShopAppointments) window.listenForShopAppointments(currentShopId);
     if (window.autoRestoreNotifications) window.autoRestoreNotifications();
   }
@@ -524,6 +559,96 @@
     }
   }
 
+  /* ---------- THỢ ---------- */
+  let pendingStaffPhoto = null;
+  function openStaffModal(){
+    document.getElementById('staff-modal-title').textContent = 'Thêm thợ';
+    document.getElementById('staff-id').value = '';
+    document.getElementById('staff-name').value = '';
+    document.getElementById('staff-specialty').value = '';
+    document.getElementById('staff-delete-btn').style.display = 'none';
+    pendingStaffPhoto = null;
+    const picker = document.getElementById('staff-photo-picker');
+    picker.style.backgroundImage = 'none';
+    picker.textContent = '📷 Ảnh thợ';
+    document.getElementById('staff-modal').classList.add('active');
+  }
+  function editStaffById(id){
+    const item = staffCache.find(s => s.id === id);
+    if (!item) return;
+    document.getElementById('staff-modal-title').textContent = 'Sửa thông tin thợ';
+    document.getElementById('staff-id').value = item.id;
+    document.getElementById('staff-name').value = item.name || '';
+    document.getElementById('staff-specialty').value = item.specialty || '';
+    document.getElementById('staff-delete-btn').style.display = 'inline-block';
+    pendingStaffPhoto = null;
+    const picker = document.getElementById('staff-photo-picker');
+    if (item.photoBase64) { picker.style.backgroundImage = 'url(' + item.photoBase64 + ')'; picker.textContent = ''; }
+    else { picker.style.backgroundImage = 'none'; picker.textContent = '📷 Ảnh thợ'; }
+    document.getElementById('staff-modal').classList.add('active');
+  }
+  function closeStaffModal(){
+    document.getElementById('staff-modal').classList.remove('active');
+  }
+  async function handleStaffPhoto(inputEl){
+    const file = inputEl.files && inputEl.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageFile(file, 400, 0.7);
+      pendingStaffPhoto = dataUrl;
+      const picker = document.getElementById('staff-photo-picker');
+      picker.style.backgroundImage = 'url(' + dataUrl + ')';
+      picker.textContent = '';
+    } catch (err) { console.error(err); alert('Có lỗi khi xử lý ảnh, thử lại nhé.'); }
+  }
+  async function saveStaff(){
+    const id = document.getElementById('staff-id').value;
+    const name = document.getElementById('staff-name').value.trim();
+    const specialty = document.getElementById('staff-specialty').value.trim();
+    if (!name) { alert('Nhập tên thợ trước nhé.'); return; }
+    try {
+      if (id) {
+        const fields = { name, specialty };
+        if (pendingStaffPhoto) fields.photoBase64 = pendingStaffPhoto;
+        await window.updateStaff(id, fields);
+      } else {
+        await window.createStaff({ shopId: currentShopId, name, specialty, photoBase64: pendingStaffPhoto || '' });
+      }
+      closeStaffModal();
+    } catch (err) { console.error(err); alert('Có lỗi khi lưu.'); }
+  }
+  async function deleteStaff(){
+    const id = document.getElementById('staff-id').value;
+    if (!id || !confirm('Xóa thợ này?')) return;
+    try { await window.deleteStaffById(id); closeStaffModal(); }
+    catch (err) { console.error(err); alert('Có lỗi khi xóa.'); }
+  }
+  let staffCache = [];
+  function renderStaffList(staff){
+    staffCache = staff;
+    const container = document.getElementById('staff-list');
+    const emptyEl = document.getElementById('staff-empty');
+    if (staff.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    staff.forEach((s) => {
+      const thumb = s.photoBase64
+        ? '<div style="width:52px;height:52px;border-radius:50%;background-image:url(' + s.photoBase64 + ');background-size:cover;background-position:center;flex-shrink:0;margin-right:10px;"></div>'
+        : '<div style="width:52px;height:52px;border-radius:50%;background:var(--surface-700);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;margin-right:10px;">💇</div>';
+      html += '<div class="card"><div class="item-row">' +
+        '<div style="display:flex;align-items:center;">' + thumb +
+        '<div><div class="card-name">' + escapeHtml(s.name) + '</div>' +
+        '<div class="card-sub">' + escapeHtml(s.specialty || '') + '</div></div></div></div>' +
+        '<div class="card-actions"><button class="btn-tiny ghost" onclick="editStaffById(\'' + s.id + '\')">✏️ Sửa</button></div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+
   /* ---------- DỊCH VỤ ---------- */
   function openServiceModal(){
     document.getElementById('service-modal-title').textContent = 'Thêm dịch vụ';
@@ -634,6 +759,7 @@
         '<div class="card-sub">' + escapeHtml(a.customerPhone || '') + '</div></div>' +
         '<div class="status-badge ' + status + '">' + appointmentStatusLabel(status) + '</div></div>' +
         '<div class="card-sub" style="margin-bottom:4px;">💅 Dịch vụ: ' + escapeHtml(a.serviceName || 'Chưa chọn') + '</div>' +
+        (a.staffName ? '<div class="card-sub" style="margin-bottom:4px;">👤 Khách muốn thợ: ' + escapeHtml(a.staffName) + '</div>' : '') +
         '<div class="card-sub" style="margin-bottom:8px;">🗓 Mong muốn: ' + escapeHtml(formatDateTime(a.preferredDate, a.preferredTime)) + '</div>' +
         (a.note ? '<div class="card-sub" style="margin-bottom:8px;">📝 ' + escapeHtml(a.note) + '</div>' : '') +
         '<div class="card-actions">' + actions + '</div>' +
@@ -805,6 +931,27 @@
       }
     );
   };
+
+  window.createStaff = async function(data){
+    await addDoc(collection(db, "beautyStaff"), {
+      shopId: data.shopId, name: data.name, specialty: data.specialty || '', photoBase64: data.photoBase64 || '', createdAt: serverTimestamp()
+    });
+  };
+  window.updateStaff = async function(id, fields){
+    await setDoc(doc(db, "beautyStaff", id), { ...fields, updatedAt: serverTimestamp() }, { merge: true });
+  };
+  window.deleteStaffById = async function(id){
+    await deleteDoc(doc(db, "beautyStaff", id));
+  };
+  window.listenForStaff = function(shopId){
+    const q = query(collection(db, "beautyStaff"), where("shopId", "==", shopId));
+    onSnapshot(q, (snap) => {
+      const staff = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      staff.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      if (window.renderStaffList) window.renderStaffList(staff);
+    });
+  };
+  window.renderStaffList = renderStaffList;
 
   window.createService = async function(data){
     await addDoc(collection(db, "beautyServices"), {
