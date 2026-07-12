@@ -538,6 +538,12 @@
           <button class="btn-tiny" onclick="changeAdminCredentials()">Cập nhật tài khoản</button>
         </div>
       </div>
+      <div class="card" style="border-color:var(--alert-red);">
+        <div class="card-name" style="margin-bottom:6px; color:var(--alert-red);">⚠️ Dọn dẹp dữ liệu thử nghiệm</div>
+        <div class="card-sub" style="margin-bottom:10px;">Xóa toàn bộ đơn đặt xe, đơn đồ ăn, lịch hẹn khám, lịch hẹn làm đẹp, và tin nhắn chat. KHÔNG xóa tài khoản khách hàng/tài xế/cửa hàng/phòng khám. Không thể hoàn tác.</div>
+        <button class="btn-tiny red" onclick="cleanupTestData()">🗑️ Xóa dữ liệu thử nghiệm</button>
+        <div id="cleanup-status" style="font-size:12px;color:var(--text-muted);margin-top:8px;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1642,6 +1648,34 @@
       document.getElementById('settings-admin-username').value = '';
       document.getElementById('settings-admin-password').value = '';
     } catch (err) { console.error(err); alert('Có lỗi khi cập nhật tài khoản.'); }
+  };
+
+  window.cleanupTestData = async function(){
+    const collectionsToClear = ['bookings', 'foodOrders', 'appointments', 'beautyAppointments', 'messages'];
+    const confirm1 = confirm('Xác nhận XÓA VĨNH VIỄN toàn bộ đơn đặt xe, đơn đồ ăn, lịch hẹn khám, lịch hẹn làm đẹp, và tin nhắn chat?\n\nTài khoản khách hàng/tài xế/cửa hàng/phòng khám/làm đẹp sẽ KHÔNG bị xóa.\n\nThao tác này KHÔNG THỂ HOÀN TÁC.');
+    if (!confirm1) return;
+    const confirm2 = prompt('Để chắc chắn, gõ đúng chữ "XOA" (viết hoa, không dấu) rồi bấm OK:');
+    if (confirm2 !== 'XOA') { alert('Đã hủy, không có gì bị xóa.'); return; }
+
+    const statusEl = document.getElementById('cleanup-status');
+    let totalDeleted = 0;
+    for (const colName of collectionsToClear) {
+      statusEl.textContent = 'Đang xóa ' + colName + '...';
+      try {
+        const snap = await getDocs(collection(db, colName));
+        const docs = snap.docs;
+        for (let i = 0; i < docs.length; i++) {
+          await deleteDoc(doc(db, colName, docs[i].id));
+          totalDeleted++;
+          if (i % 10 === 0) statusEl.textContent = 'Đang xóa ' + colName + '... (' + (i + 1) + '/' + docs.length + ')';
+        }
+      } catch (err) {
+        console.error('Lỗi khi xóa ' + colName, err);
+        statusEl.textContent = 'Có lỗi khi xóa ' + colName + ', xem console để biết thêm.';
+      }
+    }
+    statusEl.textContent = '✓ Đã xóa xong! Tổng cộng ' + totalDeleted + ' bản ghi.';
+    alert('Đã dọn dẹp xong dữ liệu thử nghiệm! Tổng cộng đã xóa ' + totalDeleted + ' bản ghi.');
   };
 
   function listenForCustomers(){
