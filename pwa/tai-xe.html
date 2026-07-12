@@ -228,6 +228,21 @@
     else if (!digits.startsWith('0')) digits = '0' + digits;
     return digits;
   }
+  function parsePriceToNumber(text){
+    if (!text) return 0;
+    let s = String(text).trim().toLowerCase().replace(/\s+/g, '').replace(/đ|vnd|vnđ/g, '');
+    let m = s.match(/^(\d+(?:[.,]\d+)?)tr(\d)?$/);
+    if (m) {
+      let base = parseFloat(m[1].replace(',', '.')) * 1000000;
+      if (m[2]) base += parseInt(m[2], 10) * 100000;
+      return Math.round(base);
+    }
+    m = s.match(/^(\d+(?:[.,]\d+)?)k$/);
+    if (m) return Math.round(parseFloat(m[1].replace(',', '.')) * 1000);
+    const digits = s.replace(/[.,]/g, '');
+    const num = parseInt(digits, 10);
+    return isNaN(num) ? 0 : num;
+  }
   function formatVnd(num){
     return Math.round(num || 0).toLocaleString('vi-VN') + ' đ';
   }
@@ -521,8 +536,16 @@
         '<div class="status-badge assigned">' + rideStatusLabel(b.status) + '</div></div>' +
         (b.pickupHouseNumber ? '<div class="card-sub" style="margin-bottom:4px;font-weight:800;color:var(--accent-amber);">🏠 Số nhà: ' + escapeHtml(b.pickupHouseNumber) + '</div>' : '') +
         '<div class="card-sub" style="margin-bottom:6px;">📍 ' + escapeHtml(b.pickup || '') + ' → ' + escapeHtml(b.dropoff || '') + '</div>' +
-        (b.pickupMapUrl ? '<div class="card-actions"><a href="' + escapeHtml(b.pickupMapUrl) + '" target="_blank" style="text-decoration:none;"><button class="btn-tiny ghost">📍 Xem trên bản đồ</button></a></div>' : '') +
-        (b.price ? '<div style="font-weight:700;color:var(--route-green);margin-bottom:8px;">💰 ' + escapeHtml(b.price) + '</div>' : '') +
+        '<div class="card-actions">' +
+        (b.pickupMapUrl ? '<a href="' + escapeHtml(b.pickupMapUrl) + '" target="_blank" style="text-decoration:none;"><button class="btn-tiny ghost">📍 Xem trên bản đồ</button></a>' : '') +
+        (b.customerPhone ? '<a href="tel:' + escapeHtml(b.customerPhone) + '" style="text-decoration:none;"><button class="btn-tiny ghost">📞 Gọi khách</button></a>' : '') +
+        '</div>' +
+        (b.price ? '<div style="font-weight:700;color:var(--route-green);margin:8px 0;">💰 ' + escapeHtml(b.price) + '</div>' : (
+          '<div class="card-actions" style="margin-top:8px;">' +
+          '<input type="text" id="price-input-' + b.id + '" placeholder="VD: 50000" style="flex:1;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:9px;">' +
+          '<button class="btn-tiny" onclick="driverSetPrice(\'' + b.id + '\')">💰 Chốt giá</button>' +
+          '</div>'
+        )) +
         (b.status === 'confirmed' ? '<div class="card-actions"><button class="btn-tiny" style="width:100%;" onclick="markRideCompleted(\'' + b.id + '\')">✅ Đánh dấu đã hoàn thành</button></div>' : '') +
         '</div>';
     });
@@ -553,6 +576,21 @@
     if (!confirm('Xác nhận chuyến đi này đã hoàn thành?')) return;
     try { await window.setRideStatusDone(bookingId); }
     catch (err) { console.error(err); alert('Có lỗi khi cập nhật.'); }
+  }
+
+  async function driverSetPrice(bookingId){
+    const input = document.getElementById('price-input-' + bookingId);
+    if (!input) return;
+    const rawValue = input.value.trim();
+    if (!rawValue) { alert('Bạn nhập giá trước nhé.'); return; }
+    const amount = parsePriceToNumber(rawValue);
+    if (!amount) { alert('Giá không hợp lệ, thử lại nhé.'); return; }
+    const priceText = formatVnd(amount);
+    if (!confirm('Xác nhận báo giá ' + priceText + ' cho khách?')) return;
+    try {
+      await window.driverConfirmPrice(bookingId, priceText);
+      alert('Đã gửi giá cho khách!');
+    } catch (err) { console.error(err); alert('Có lỗi khi chốt giá.'); }
   }
 
   /* ---------- ĐƠN CÓ THỂ NHẬN ---------- */
@@ -951,6 +989,10 @@
   };
   window.renderMyRides = renderMyRides;
   window.renderPreferredRides = renderPreferredRides;
+
+  window.driverConfirmPrice = async function(bookingId, priceText){
+    await updateDoc(doc(db, "bookings", bookingId), { price: priceText, status: 'confirmed', updatedAt: serverTimestamp() });
+  };
 
   window.setRideStatusDone = async function(bookingId){
     await updateDoc(doc(db, "bookings", bookingId), { status: 'done', updatedAt: serverTimestamp() });
