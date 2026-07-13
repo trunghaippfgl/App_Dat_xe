@@ -1753,7 +1753,14 @@
             icon: L.divIcon({ html: '🚕', className: 'driver-map-icon', iconSize: [30, 30] })
           }).addTo(driverMapInstance).bindPopup('🚕 Tài xế');
         }
-        if (!currentTrackPickupLat) driverMapInstance.setView([lat, lng], 14);
+        if (currentTrackPickupLat && currentTrackPickupLng) {
+          driverMapInstance.fitBounds([
+            [currentTrackPickupLat, currentTrackPickupLng],
+            [lat, lng]
+          ], { padding: [40, 40], maxZoom: 15 });
+        } else {
+          driverMapInstance.setView([lat, lng], 14);
+        }
       });
     }
   };
