@@ -181,6 +181,7 @@
     <div class="tab-btn" id="tab-entertainment" onclick="switchTab('entertainment')">Giải trí</div>
     <div class="tab-btn" id="tab-clinics" onclick="switchTab('clinics'); if(window.renderClinicsList) renderClinicsList();">Phòng khám</div>
     <div class="tab-btn" id="tab-beauty" onclick="switchTab('beauty'); if(window.renderBeautyShopsList) renderBeautyShopsList();">Làm đẹp</div>
+    <div class="tab-btn" id="tab-ads" onclick="switchTab('ads')">Quảng cáo</div>
     <div class="tab-btn" id="tab-settings" onclick="switchTab('settings')">Cài đặt</div>
   </div>
 
@@ -355,6 +356,37 @@
       </div>
       <div id="beauty-list"></div>
       <div class="empty-state" id="beauty-empty" style="display:none;">Chưa có cửa hàng làm đẹp nào đăng ký.</div>
+    </div>
+  </div>
+
+  <!-- ADS PANEL -->
+  <div class="panel" id="panel-ads" style="position:relative;">
+    <div class="scroll">
+      <div class="card-sub" style="margin-bottom:10px;">Banner quảng cáo hiện xoay vòng ở màn hình chính (mục Đặt xe) và màn Đặt đồ ăn của app khách hàng. Khuyến nghị ảnh ngang, tỉ lệ khoảng 16:7.</div>
+      <div id="ads-list"></div>
+      <div class="empty-state" id="ads-empty" style="display:none;">Chưa có banner nào. Bấm nút + để thêm.</div>
+    </div>
+    <button class="fab" onclick="openAdModal()">+</button>
+  </div>
+
+  <!-- AD ADD/EDIT MODAL -->
+  <div id="ad-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--surface-800); border:1px solid var(--border-steel); border-radius:16px; padding:20px; width:100%; max-width:400px; max-height:88vh; overflow-y:auto;">
+      <div style="font-size:15px; font-weight:700; margin-bottom:14px;" id="ad-modal-title">Thêm banner</div>
+      <input type="hidden" id="ad-modal-id">
+      <div id="ad-modal-photo-picker" onclick="document.getElementById('ad-modal-photo-input').click()" style="width:100%;height:150px;border-radius:12px;background:var(--bg-asphalt-900);border:1px dashed var(--border-steel);display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer;margin-bottom:14px;background-size:cover;background-position:center;color:var(--text-dim);">📷 Ảnh banner (bắt buộc)</div>
+      <input type="file" id="ad-modal-photo-input" accept="image/*" style="display:none;" onchange="handleAdModalPhoto(this)">
+      <div style="margin-bottom:10px;"><input type="text" id="ad-modal-title-input" placeholder="Tên nội bộ (VD: KM khai trương)" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
+      <div style="margin-bottom:10px;"><input type="text" id="ad-modal-link" placeholder="Link khi bấm vào (tuỳ chọn, VD: tel:0912345678)" style="width:100%;background:var(--bg-asphalt-900);border:1px solid var(--border-steel);border-radius:9px;color:var(--text-fog);padding:10px;"></div>
+      <div style="margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="ad-modal-active" checked style="width:18px;height:18px;">
+        <label for="ad-modal-active" style="font-size:13px; color:var(--text-muted);">Đang hiển thị</label>
+      </div>
+      <div class="card-actions">
+        <button class="btn-tiny ghost" onclick="closeAdModal()">Hủy</button>
+        <button class="btn-tiny" onclick="saveAd()">Lưu</button>
+        <button class="btn-tiny red" id="ad-modal-delete-btn" style="display:none;" onclick="deleteAd()">Xóa</button>
+      </div>
     </div>
   </div>
 
@@ -2408,6 +2440,104 @@
     catch (err) { console.error(err); alert('Có lỗi khi cập nhật.'); }
   };
 
+  /* ---------- QUẢNG CÁO ---------- */
+  let adsCache = [];
+  let pendingAdPhoto = null;
+  function listenForAds(){
+    onSnapshot(collection(db, "ads"), (snap) => {
+      adsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      adsCache.sort((a, b) => (a.order || 0) - (b.order || 0));
+      renderAdsList();
+    });
+  }
+  function renderAdsList(){
+    const container = document.getElementById('ads-list');
+    const emptyEl = document.getElementById('ads-empty');
+    if (!container) return;
+    if (adsCache.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    adsCache.forEach((ad, i) => {
+      html += '<div class="card">' +
+        '<div style="width:100%;height:100px;border-radius:10px;background-image:url(' + ad.photoBase64 + ');background-size:cover;background-position:center;margin-bottom:8px;"></div>' +
+        '<div class="item-row"><div class="card-name">' + escapeHtml(ad.title || '(Không tên)') + '</div>' +
+        '<div style="font-size:11px;font-weight:800;padding:4px 10px;border-radius:100px;background:rgba(255,255,255,0.06);color:' + (ad.active !== false ? 'var(--route-green)' : 'var(--text-dim)') + ';">' + (ad.active !== false ? 'Đang hiện' : 'Đã ẩn') + '</div></div>' +
+        '<div class="card-actions">' +
+        '<button class="btn-tiny ghost" onclick="moveAd(\'' + ad.id + '\', -1)"' + (i === 0 ? ' disabled' : '') + '>⬆ Lên</button>' +
+        '<button class="btn-tiny ghost" onclick="moveAd(\'' + ad.id + '\', 1)"' + (i === adsCache.length - 1 ? ' disabled' : '') + '>⬇ Xuống</button>' +
+        '<button class="btn-tiny ghost" onclick="openAdModal(\'' + ad.id + '\')">✏️ Sửa</button>' +
+        '</div></div>';
+    });
+    container.innerHTML = html;
+  }
+  window.moveAd = async function(adId, direction){
+    const idx = adsCache.findIndex(a => a.id === adId);
+    const swapIdx = idx + direction;
+    if (swapIdx < 0 || swapIdx >= adsCache.length) return;
+    const a = adsCache[idx], b = adsCache[swapIdx];
+    const orderA = a.order || 0, orderB = b.order || 0;
+    try {
+      await setDoc(doc(db, "ads", a.id), { order: orderB }, { merge: true });
+      await setDoc(doc(db, "ads", b.id), { order: orderA }, { merge: true });
+    } catch (err) { console.error(err); alert('Có lỗi khi đổi thứ tự.'); }
+  };
+  window.openAdModal = function(adId){
+    const ad = adId ? adsCache.find(a => a.id === adId) : null;
+    document.getElementById('ad-modal-title').textContent = ad ? 'Sửa banner' : 'Thêm banner';
+    document.getElementById('ad-modal-id').value = ad ? ad.id : '';
+    document.getElementById('ad-modal-title-input').value = ad ? (ad.title || '') : '';
+    document.getElementById('ad-modal-link').value = ad ? (ad.link || '') : '';
+    document.getElementById('ad-modal-active').checked = ad ? (ad.active !== false) : true;
+    document.getElementById('ad-modal-delete-btn').style.display = ad ? 'inline-block' : 'none';
+    pendingAdPhoto = null;
+    const picker = document.getElementById('ad-modal-photo-picker');
+    if (ad && ad.photoBase64) { picker.style.backgroundImage = 'url(' + ad.photoBase64 + ')'; picker.textContent = ''; }
+    else { picker.style.backgroundImage = 'none'; picker.textContent = '📷 Ảnh banner (bắt buộc)'; }
+    document.getElementById('ad-modal').style.display = 'flex';
+  };
+  window.handleAdModalPhoto = async function(inputEl){
+    const file = inputEl.files && inputEl.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageFile(file, 900, 0.75);
+      pendingAdPhoto = dataUrl;
+      const picker = document.getElementById('ad-modal-photo-picker');
+      picker.style.backgroundImage = 'url(' + dataUrl + ')';
+      picker.textContent = '';
+    } catch (err) { console.error(err); alert('Có lỗi khi xử lý ảnh, thử lại nhé.'); }
+  };
+  window.closeAdModal = function(){
+    document.getElementById('ad-modal').style.display = 'none';
+  };
+  window.saveAd = async function(){
+    const id = document.getElementById('ad-modal-id').value;
+    const title = document.getElementById('ad-modal-title-input').value.trim();
+    const link = document.getElementById('ad-modal-link').value.trim();
+    const active = document.getElementById('ad-modal-active').checked;
+    if (!id && !pendingAdPhoto) { alert('Bạn chọn ảnh banner trước nhé.'); return; }
+    try {
+      if (id) {
+        const fields = { title, link, active, updatedAt: serverTimestamp() };
+        if (pendingAdPhoto) fields.photoBase64 = pendingAdPhoto;
+        await setDoc(doc(db, "ads", id), fields, { merge: true });
+      } else {
+        const maxOrder = adsCache.reduce((m, a) => Math.max(m, a.order || 0), 0);
+        await addDoc(collection(db, "ads"), { title, link, active, photoBase64: pendingAdPhoto, order: maxOrder + 1, createdAt: serverTimestamp() });
+      }
+      pendingAdPhoto = null;
+      closeAdModal();
+    } catch (err) { console.error(err); alert('Có lỗi khi lưu.'); }
+  };
+  window.deleteAd = function(){
+    const id = document.getElementById('ad-modal-id').value;
+    if (!id || !confirm('Xóa banner này?')) return;
+    deleteDoc(doc(db, "ads", id)).then(() => closeAdModal()).catch((err) => { console.error(err); alert('Có lỗi khi xóa.'); });
+  };
+
   listenForStores();
   listenForFoodOrders();
   listenForMembershipPlans();
@@ -2416,6 +2546,7 @@
   listenForBeautyShops();
   listenForInsurancePlans();
   listenForInsuranceRequests();
+  listenForAds();
 </script>
 </body>
 </html>

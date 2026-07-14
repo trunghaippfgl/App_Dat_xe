@@ -634,6 +634,8 @@
         </div>
         <div class="scroll">
 
+          <div id="ads-banner-container-home" style="display:none; margin-bottom:16px;"></div>
+
           <div class="section-label" style="margin-top:0;">Dịch vụ khác</div>
           <div class="quick-chip-row" style="margin-top:0; margin-bottom:16px;">
             <div class="quick-chip" onclick="openFoodStores()">🍜 Đặt đồ ăn</div>
@@ -899,6 +901,7 @@
           <div class="thread-title">Đặt đồ ăn</div>
         </div>
         <div class="scroll" style="padding-top:14px;">
+          <div id="ads-banner-container-food" style="display:none; margin-bottom:16px;"></div>
           <div id="food-stores-list"></div>
           <div class="empty-state" id="food-stores-empty" style="display:none;">Chưa có cửa hàng nào trên Xe Nhà. Quay lại sau nhé!</div>
         </div>
@@ -2253,6 +2256,7 @@
 
   async function openFoodStores(){
     openSubScreen('screen-food-stores');
+    loadAdsBanner('ads-banner-container-food');
     const container = document.getElementById('food-stores-list');
     const emptyEl = document.getElementById('food-stores-empty');
     container.innerHTML = '<div class="empty-state">Đang tải danh sách cửa hàng...</div>';
@@ -2894,6 +2898,66 @@
     container.innerHTML = html;
   }
 
+  /* ---------- BANNER QUẢNG CÁO ---------- */
+  let adsBannerCache = [];
+  let adsBannerIndex = {};
+  let adsBannerTimers = {};
+  async function loadAdsBanner(containerId){
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const ready = await waitForFirebaseReady();
+    if (!ready || !window.getActiveAds) return;
+    try {
+      const ads = await window.getActiveAds();
+      if (!ads || ads.length === 0) { container.style.display = 'none'; return; }
+      adsBannerCache = ads;
+      renderAdsBannerCarousel(containerId, ads);
+    } catch (err) { console.error(err); }
+  }
+  function renderAdsBannerCarousel(containerId, ads){
+    const container = document.getElementById(containerId);
+    container.style.display = 'block';
+    adsBannerIndex[containerId] = 0;
+    const slidesHtml = ads.map((ad, i) =>
+      '<div class="ads-banner-slide" data-idx="' + i + '" style="display:' + (i === 0 ? 'block' : 'none') + '; cursor:' + (ad.link ? 'pointer' : 'default') + ';" onclick="handleAdsBannerClick(' + i + ', \'' + containerId + '\')">' +
+      '<div style="width:100%; aspect-ratio:16/7; border-radius:16px; background-image:url(' + ad.photoBase64 + '); background-size:cover; background-position:center;"></div>' +
+      '</div>'
+    ).join('');
+    const dotsHtml = ads.length > 1 ? ('<div style="display:flex; justify-content:center; gap:6px; margin-top:8px;">' +
+      ads.map((_, i) => '<div class="ads-banner-dot" data-dot="' + i + '" style="width:6px; height:6px; border-radius:50%; background:' + (i === 0 ? 'var(--accent-amber)' : 'var(--border-steel)') + ';"></div>').join('') +
+      '</div>') : '';
+    container.innerHTML = slidesHtml + dotsHtml;
+    container.dataset.ads = JSON.stringify(ads.map(a => ({ link: a.link || '' })));
+    if (adsBannerTimers[containerId]) clearInterval(adsBannerTimers[containerId]);
+    if (ads.length > 1) {
+      adsBannerTimers[containerId] = setInterval(() => {
+        advanceAdsBanner(containerId);
+      }, 4500);
+    }
+  }
+  function advanceAdsBanner(containerId){
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const slides = container.querySelectorAll('.ads-banner-slide');
+    const dots = container.querySelectorAll('.ads-banner-dot');
+    if (slides.length === 0) return;
+    let idx = adsBannerIndex[containerId] || 0;
+    slides[idx].style.display = 'none';
+    if (dots[idx]) dots[idx].style.background = 'var(--border-steel)';
+    idx = (idx + 1) % slides.length;
+    slides[idx].style.display = 'block';
+    if (dots[idx]) dots[idx].style.background = 'var(--accent-amber)';
+    adsBannerIndex[containerId] = idx;
+  }
+  function handleAdsBannerClick(idx, containerId){
+    try {
+      const data = JSON.parse(document.getElementById(containerId).dataset.ads || '[]');
+      const link = data[idx] && data[idx].link;
+      if (link) window.open(link, '_blank');
+    } catch (err) { console.error(err); }
+  }
+  loadAdsBanner('ads-banner-container-home');
+
   let currentServiceType = 'passenger';
   function setServiceType(type){
     currentServiceType = type;
@@ -3451,6 +3515,13 @@
       });
       if (window.renderMyAppointments) window.renderMyAppointments(appointments);
     });
+  };
+
+  window.getActiveAds = async function(){
+    const snap = await getDocs(collection(db, "ads"));
+    const ads = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(a => a.active !== false && a.photoBase64);
+    ads.sort((a, b) => (a.order || 0) - (b.order || 0));
+    return ads;
   };
 
   window.getApprovedStores = async function(){
