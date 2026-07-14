@@ -2160,11 +2160,6 @@
     const discountType = localStorage.getItem('xn_applied_voucher_type');
     const discountValue = parseFloat(localStorage.getItem('xn_applied_voucher_value') || '0');
 
-    if (!voucherCode) {
-      resultEl.style.display = 'none';
-      alert('Bạn chưa áp mã giảm giá nào. Dán mã vào ô "Mã giảm giá" ở trên và bấm ✓ trước nhé.');
-      return;
-    }
     if (!pickup || !dropoff) {
       alert('Bạn nhập điểm đón và điểm đến trước nhé để tính giá.');
       return;
@@ -2174,16 +2169,20 @@
     const fixed = window.getFixedPrice ? window.getFixedPrice(pickup, dropoff) : null;
     if (fixed && fixed.price) {
       const originalAmount = parsePriceToNumber(fixed.price);
-      const discount = computeDiscount(originalAmount, discountType, discountValue);
-      const finalAmount = originalAmount - discount;
-      resultEl.innerHTML = '💰 Giá gốc: <span style="text-decoration:line-through;color:var(--text-muted);font-weight:500;">' + formatVnd(originalAmount) + '</span> → <b>' + formatVnd(finalAmount) + '</b><br>🎁 Đã áp mã "' + voucherCode + '" — giảm ' + formatVnd(discount);
+      if (voucherCode) {
+        const discount = computeDiscount(originalAmount, discountType, discountValue);
+        const finalAmount = originalAmount - discount;
+        resultEl.innerHTML = '💰 Giá gốc: <span style="text-decoration:line-through;color:var(--text-muted);font-weight:500;">' + formatVnd(originalAmount) + '</span> → <b>' + formatVnd(finalAmount) + '</b><br>🎁 Đã áp mã "' + voucherCode + '" — giảm ' + formatVnd(discount);
+      } else {
+        resultEl.innerHTML = '💰 Giá cố định tuyến này: <b>' + formatVnd(originalAmount) + '</b>';
+      }
       resultEl.style.display = 'block';
       return;
     }
 
-    // Trường hợp 2: không có giá cố định — ước tính theo km (cần định vị GPS trước)
+    // Trường hợp 2: không có giá cố định — ước tính theo km (cần định vị GPS điểm đón trước)
     if (!lastGpsCoords) {
-      alert('Tuyến này chưa có giá cố định. Bạn bấm 📍 lấy vị trí hiện tại trước, rồi bấm lại 🧮 Tính tiền để ước tính giá đã giảm nhé.');
+      alert('Tuyến này chưa có giá cố định. Bạn bấm 📍 lấy vị trí hiện tại (điểm đón) trước, rồi bấm lại 🧮 Tính tiền để ước tính giá nhé.');
       return;
     }
     const rate = (window.getAppSettings && window.getAppSettings().ratePerKm) || 0;
@@ -2191,7 +2190,7 @@
     try {
       const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(dropoff) + '&limit=1');
       const data = await res.json();
-      if (!data || !data[0]) { alert('Không xác định được vị trí điểm đến để tính khoảng cách.'); return; }
+      if (!data || !data[0]) { alert('Không xác định được vị trí điểm đến để tính khoảng cách. Bạn thử nhập địa điểm đến rõ ràng hơn (VD: thêm tên phường/xã) nhé.'); return; }
       const lat2 = parseFloat(data[0].lat), lon2 = parseFloat(data[0].lon);
       const R = 6371;
       const dLat = (lat2 - lastGpsCoords.lat) * Math.PI / 180;
@@ -2199,8 +2198,12 @@
       const a = Math.sin(dLat/2)**2 + Math.cos(lastGpsCoords.lat*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
       const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
       const estimate = Math.round(dist * rate / 1000) * 1000;
-      const discount = computeDiscount(estimate, discountType, discountValue);
-      resultEl.innerHTML = '📏 Khoảng cách ước tính: ' + dist.toFixed(1) + ' km<br>💰 Giá ước tính: <span style="text-decoration:line-through;color:var(--text-muted);font-weight:500;">' + formatVnd(estimate) + '</span> → <b>' + formatVnd(estimate - discount) + '</b><br>🎁 Đã áp mã "' + voucherCode + '" — giảm ' + formatVnd(discount) + '<br><span style="color:var(--text-muted);font-weight:500;">(Đây chỉ là ước tính, giá thật do tài xế xác nhận qua chat)</span>';
+      if (voucherCode) {
+        const discount = computeDiscount(estimate, discountType, discountValue);
+        resultEl.innerHTML = '📏 Khoảng cách ước tính: ' + dist.toFixed(1) + ' km<br>💰 Giá ước tính: <span style="text-decoration:line-through;color:var(--text-muted);font-weight:500;">' + formatVnd(estimate) + '</span> → <b>' + formatVnd(estimate - discount) + '</b><br>🎁 Đã áp mã "' + voucherCode + '" — giảm ' + formatVnd(discount) + '<br><span style="color:var(--text-muted);font-weight:500;">(Đây chỉ là ước tính, giá thật do tài xế xác nhận qua chat)</span>';
+      } else {
+        resultEl.innerHTML = '📏 Khoảng cách ước tính: ' + dist.toFixed(1) + ' km<br>💰 Giá ước tính: <b>' + formatVnd(estimate) + '</b><br><span style="color:var(--text-muted);font-weight:500;">(Đây chỉ là ước tính, giá thật do tài xế xác nhận qua chat)</span>';
+      }
       resultEl.style.display = 'block';
     } catch (err) {
       console.error(err);
