@@ -873,7 +873,7 @@
             <div class="menu-item" onclick="openFoodOrdersScreen()"><span>🍜 Đơn đồ ăn của tôi</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openMyAppointmentsScreen()"><span>📅 Lịch hẹn khám của tôi</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openMyBeautyAppointmentsScreen()"><span>💅 Lịch hẹn làm đẹp của tôi</span><span class="arrow">›</span></div>
-            <div class="menu-item" onclick="openNotificationsScreen()"><span>🔔 Thông báo <span id="notifications-badge-dot" style="display:none; width:8px; height:8px; border-radius:50%; background:var(--alert-red); margin-left:4px;"></span></span><span class="arrow">›</span></div>
+            <div class="menu-item" onclick="openNotificationsScreen()"><span>🔔 Thông báo</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openSubScreen('screen-favorite-drivers')"><span>Tài xế yêu thích</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openSubScreen('screen-history')"><span>Lịch sử chuyến đi</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openSubScreen('screen-payment-method')"><span>Phương thức thanh toán</span><span class="arrow">›</span></div>
@@ -1281,7 +1281,7 @@
       <div class="navbtn on" id="nav-home" onclick="showTab('home')"><div class="navicon">🚗</div>Đặt xe</div>
       <div class="navbtn" id="nav-chats" onclick="showTab('chats')"><div class="navicon">💬</div>Trò chuyện</div>
       <div class="navbtn" id="nav-trips" onclick="showTab('trips')"><div class="navicon">🧾</div>Chuyến đi</div>
-      <div class="navbtn" id="nav-profile" onclick="showTab('profile')"><div class="navicon">👤</div>Cá nhân</div>
+      <div class="navbtn" id="nav-profile" onclick="showTab('profile')"><div class="navicon" style="position:relative; display:inline-block;">👤<span id="notifications-badge-count" style="display:none; position:absolute; top:-6px; right:-10px; background:var(--alert-red); color:#fff; font-size:10px; font-weight:800; min-width:16px; height:16px; border-radius:9px; line-height:16px; text-align:center; padding:0 3px;"></span></div>Cá nhân</div>
     </div>
 
   </div>
@@ -2825,12 +2825,19 @@
     try {
       const notifications = await window.getCustomerBroadcasts();
       const lastSeen = parseInt(localStorage.getItem('xn_notifications_last_seen') || '0', 10);
-      const hasUnread = notifications.some(n => {
+      const unreadCount = notifications.filter(n => {
         const ts = (n.createdAt && n.createdAt.toMillis) ? n.createdAt.toMillis() : 0;
         return ts > lastSeen;
-      });
-      const badge = document.getElementById('notifications-badge-dot');
-      if (badge) badge.style.display = hasUnread ? 'inline-block' : 'none';
+      }).length;
+      const badge = document.getElementById('notifications-badge-count');
+      if (badge) {
+        if (unreadCount > 0) {
+          badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+          badge.style.display = 'block';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
     } catch (err) { console.error(err); }
   }
 
