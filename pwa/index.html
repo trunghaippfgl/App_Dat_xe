@@ -873,6 +873,7 @@
             <div class="menu-item" onclick="openFoodOrdersScreen()"><span>🍜 Đơn đồ ăn của tôi</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openMyAppointmentsScreen()"><span>📅 Lịch hẹn khám của tôi</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openMyBeautyAppointmentsScreen()"><span>💅 Lịch hẹn làm đẹp của tôi</span><span class="arrow">›</span></div>
+            <div class="menu-item" onclick="openNotificationsScreen()"><span>🔔 Thông báo <span id="notifications-badge-dot" style="display:none; width:8px; height:8px; border-radius:50%; background:var(--alert-red); margin-left:4px;"></span></span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openSubScreen('screen-favorite-drivers')"><span>Tài xế yêu thích</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openSubScreen('screen-history')"><span>Lịch sử chuyến đi</span><span class="arrow">›</span></div>
             <div class="menu-item" onclick="openSubScreen('screen-payment-method')"><span>Phương thức thanh toán</span><span class="arrow">›</span></div>
@@ -1154,6 +1155,18 @@
         <div class="scroll" style="padding-top:14px;">
           <div id="my-beauty-appointments-list"></div>
           <div class="empty-state" id="my-beauty-appointments-empty" style="display:none;">Bạn chưa đặt lịch làm đẹp nào.</div>
+        </div>
+      </div>
+
+      <!-- SCREEN: THÔNG BÁO -->
+      <div class="screen" id="screen-notifications">
+        <div class="thread-header">
+          <div class="back-btn" onclick="closeThread()">←</div>
+          <div class="thread-title">Thông báo</div>
+        </div>
+        <div class="scroll" style="padding-top:14px;">
+          <div id="notifications-list"></div>
+          <div class="empty-state" id="notifications-empty" style="display:none;">Chưa có thông báo nào.</div>
         </div>
       </div>
 
@@ -2760,6 +2773,67 @@
     const map = { pending: 'Chờ cửa hàng xác nhận', confirmed: 'Đã xác nhận', cancelled: 'Đã hủy' };
     return map[status] || status;
   }
+  /* ---------- THÔNG BÁO ---------- */
+  async function openNotificationsScreen(){
+    openSubScreen('screen-notifications');
+    localStorage.setItem('xn_notifications_last_seen', Date.now().toString());
+    updateNotificationBadge();
+    const container = document.getElementById('notifications-list');
+    container.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:20px;">Đang tải...</div>';
+    const ready = await waitForFirebaseReady();
+    if (ready && window.getCustomerBroadcasts) {
+      try {
+        const notifications = await window.getCustomerBroadcasts();
+        renderNotifications(notifications);
+      } catch (err) { console.error(err); container.innerHTML = ''; }
+    }
+  }
+  function timeAgoLabel(ts){
+    if (!ts) return '';
+    const diffMs = Date.now() - ts;
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'Vừa xong';
+    if (mins < 60) return mins + ' phút trước';
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return hours + ' giờ trước';
+    const days = Math.floor(hours / 24);
+    return days + ' ngày trước';
+  }
+  function renderNotifications(notifications){
+    const container = document.getElementById('notifications-list');
+    const emptyEl = document.getElementById('notifications-empty');
+    if (!notifications || notifications.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    notifications.forEach((n) => {
+      const ts = (n.createdAt && n.createdAt.toMillis) ? n.createdAt.toMillis() : null;
+      html += '<div class="card" style="margin-bottom:10px;">' +
+        '<div class="card-top"><div class="card-name">📢 ' + escapeHtml(n.title || '') + '</div></div>' +
+        '<div class="card-sub" style="margin-bottom:6px; color:var(--text-fog);">' + escapeHtml(n.body || '') + '</div>' +
+        '<div class="card-sub" style="font-size:11px;">' + timeAgoLabel(ts) + '</div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+  async function updateNotificationBadge(){
+    const ready = await waitForFirebaseReady();
+    if (!ready || !window.getCustomerBroadcasts) return;
+    try {
+      const notifications = await window.getCustomerBroadcasts();
+      const lastSeen = parseInt(localStorage.getItem('xn_notifications_last_seen') || '0', 10);
+      const hasUnread = notifications.some(n => {
+        const ts = (n.createdAt && n.createdAt.toMillis) ? n.createdAt.toMillis() : 0;
+        return ts > lastSeen;
+      });
+      const badge = document.getElementById('notifications-badge-dot');
+      if (badge) badge.style.display = hasUnread ? 'inline-block' : 'none';
+    } catch (err) { console.error(err); }
+  }
+
   function renderMyBeautyAppointments(appointments){
     const container = document.getElementById('my-beauty-appointments-list');
     const emptyEl = document.getElementById('my-beauty-appointments-empty');
@@ -3474,6 +3548,18 @@
     });
   };
 
+  window.getCustomerBroadcasts = async function(){
+    const q = query(collection(db, "adminBroadcasts"), where("targetCustomers", "==", true));
+    const snap = await getDocs(q);
+    const notifications = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    notifications.sort((a, b) => {
+      const at = (a.createdAt && a.createdAt.toMillis) ? a.createdAt.toMillis() : 0;
+      const bt = (b.createdAt && b.createdAt.toMillis) ? b.createdAt.toMillis() : 0;
+      return bt - at;
+    });
+    return notifications;
+  };
+
   window.getApprovedClinics = async function(){
     const q = query(collection(db, "clinics"), where("status", "==", "approved"));
     const snap = await getDocs(q);
@@ -3907,6 +3993,7 @@
     listenForVouchers(existingCustomerId);
     autoRestoreNotifications();
   }
+  updateNotificationBadge();
   window.listenForMessages = listenForMessages;
 
   window.__firebaseReady = true;
