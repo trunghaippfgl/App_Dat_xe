@@ -182,6 +182,7 @@
     <div class="tab-btn" id="tab-clinics" onclick="switchTab('clinics'); if(window.renderClinicsList) renderClinicsList();">Phòng khám</div>
     <div class="tab-btn" id="tab-beauty" onclick="switchTab('beauty'); if(window.renderBeautyShopsList) renderBeautyShopsList();">Làm đẹp</div>
     <div class="tab-btn" id="tab-ads" onclick="switchTab('ads')">Quảng cáo</div>
+    <div class="tab-btn" id="tab-broadcast" onclick="switchTab('broadcast')">Thông báo</div>
     <div class="tab-btn" id="tab-settings" onclick="switchTab('settings')">Cài đặt</div>
   </div>
 
@@ -367,6 +368,41 @@
       <div class="empty-state" id="ads-empty" style="display:none;">Chưa có banner nào. Bấm nút + để thêm.</div>
     </div>
     <button class="fab" onclick="openAdModal()">+</button>
+  </div>
+
+  <!-- BROADCAST NOTIFICATION PANEL -->
+  <div class="panel" id="panel-broadcast">
+    <div class="scroll">
+      <div class="card">
+        <div class="card-name" style="margin-bottom:6px;">📢 Gửi thông báo đẩy</div>
+        <div class="card-sub" style="margin-bottom:14px;">Gửi thông báo tới toàn bộ khách hàng và/hoặc đối tác (cửa hàng, tài xế, phòng khám, làm đẹp) đang bật thông báo trên điện thoại.</div>
+        <div class="field">
+          <span class="field-label">Tiêu đề *</span>
+          <input type="text" id="broadcast-title" class="native-input" placeholder="VD: Khuyến mãi cuối tuần">
+        </div>
+        <div class="field">
+          <span class="field-label">Nội dung *</span>
+          <input type="text" id="broadcast-body" class="native-input" placeholder="VD: Giảm 20% cho mọi chuyến xe trong 2 ngày cuối tuần!">
+        </div>
+        <div class="field">
+          <span class="field-label">Gửi cho</span>
+          <div style="display:flex; gap:16px; margin-top:6px;">
+            <label style="display:flex; align-items:center; gap:6px; font-size:13.5px; color:var(--text-fog); cursor:pointer;">
+              <input type="checkbox" id="broadcast-target-customers" checked style="width:18px;height:18px;"> Khách hàng
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:13.5px; color:var(--text-fog); cursor:pointer;">
+              <input type="checkbox" id="broadcast-target-partners" style="width:18px;height:18px;"> Đối tác (cửa hàng/tài xế/phòng khám/làm đẹp)
+            </label>
+          </div>
+        </div>
+        <button class="btn-tiny" style="margin-top:8px;" onclick="sendBroadcastNotification()">📤 Gửi thông báo ngay</button>
+        <div id="broadcast-status" style="font-size:12px;color:var(--text-muted);margin-top:8px;"></div>
+      </div>
+
+      <div class="card-name" style="margin:16px 0 8px;">Lịch sử đã gửi</div>
+      <div id="broadcast-history-list"></div>
+      <div class="empty-state" id="broadcast-history-empty" style="display:none;">Chưa gửi thông báo nào.</div>
+    </div>
   </div>
 
   <!-- AD ADD/EDIT MODAL -->
@@ -2546,7 +2582,64 @@
   listenForBeautyShops();
   listenForInsurancePlans();
   listenForInsuranceRequests();
+  /* ---------- THÔNG BÁO ĐẨY (BROADCAST) ---------- */
+  let broadcastHistoryCache = [];
+  function listenForBroadcastHistory(){
+    onSnapshot(collection(db, "adminBroadcasts"), (snap) => {
+      broadcastHistoryCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      broadcastHistoryCache.sort((a, b) => {
+        const at = (a.createdAt && a.createdAt.toMillis) ? a.createdAt.toMillis() : 0;
+        const bt = (b.createdAt && b.createdAt.toMillis) ? b.createdAt.toMillis() : 0;
+        return bt - at;
+      });
+      renderBroadcastHistory();
+    });
+  }
+  function renderBroadcastHistory(){
+    const container = document.getElementById('broadcast-history-list');
+    const emptyEl = document.getElementById('broadcast-history-empty');
+    if (!container) return;
+    if (broadcastHistoryCache.length === 0) {
+      container.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    let html = '';
+    broadcastHistoryCache.forEach((b) => {
+      const targets = [];
+      if (b.targetCustomers) targets.push('Khách hàng');
+      if (b.targetPartners) targets.push('Đối tác');
+      html += '<div class="card">' +
+        '<div class="card-name">' + escapeHtml(b.title || '') + '</div>' +
+        '<div class="card-sub" style="margin:4px 0;">' + escapeHtml(b.body || '') + '</div>' +
+        '<div class="card-sub">Đã gửi cho: ' + escapeHtml(targets.join(' + ') || 'Không rõ') + '</div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+  window.sendBroadcastNotification = async function(){
+    const title = document.getElementById('broadcast-title').value.trim();
+    const body = document.getElementById('broadcast-body').value.trim();
+    const targetCustomers = document.getElementById('broadcast-target-customers').checked;
+    const targetPartners = document.getElementById('broadcast-target-partners').checked;
+    const statusEl = document.getElementById('broadcast-status');
+    if (!title || !body) { alert('Nhập đủ tiêu đề và nội dung nhé.'); return; }
+    if (!targetCustomers && !targetPartners) { alert('Chọn ít nhất 1 đối tượng để gửi nhé.'); return; }
+    if (!confirm('Xác nhận gửi thông báo này?')) return;
+    statusEl.textContent = 'Đang gửi...';
+    try {
+      await addDoc(collection(db, "adminBroadcasts"), {
+        title, body, targetCustomers, targetPartners, createdAt: serverTimestamp()
+      });
+      statusEl.textContent = '✓ Đã gửi! (có thể mất vài giây để tới điện thoại người nhận)';
+      document.getElementById('broadcast-title').value = '';
+      document.getElementById('broadcast-body').value = '';
+    } catch (err) { console.error(err); statusEl.textContent = ''; alert('Có lỗi khi gửi thông báo.'); }
+  };
+
   listenForAds();
+  listenForBroadcastHistory();
 </script>
 </body>
 </html>
