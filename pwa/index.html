@@ -634,6 +634,15 @@
         </div>
         <div class="scroll">
 
+          <div id="new-notification-banner" style="display:none; margin-bottom:16px; background:var(--surface-800); border:1px solid var(--accent-amber); border-radius:14px; padding:14px; cursor:pointer;" onclick="openNotificationsScreen()">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+              <div>
+                <div style="font-size:13px; font-weight:800; color:var(--accent-amber);">📢 <span id="new-notification-title"></span></div>
+                <div style="font-size:12.5px; color:var(--text-muted); margin-top:4px;" id="new-notification-body"></div>
+              </div>
+              <div onclick="event.stopPropagation(); dismissNotificationBanner();" style="color:var(--text-dim); font-size:16px; flex-shrink:0;">✕</div>
+            </div>
+          </div>
           <div id="ads-banner-container-home" style="display:none; margin-bottom:16px;"></div>
 
           <div class="section-label" style="margin-top:0;">Dịch vụ khác</div>
@@ -2777,15 +2786,24 @@
   async function openNotificationsScreen(){
     openSubScreen('screen-notifications');
     localStorage.setItem('xn_notifications_last_seen', Date.now().toString());
+    const bannerEl = document.getElementById('new-notification-banner');
+    if (bannerEl) bannerEl.style.display = 'none';
     updateNotificationBadge();
     const container = document.getElementById('notifications-list');
     container.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:20px;">Đang tải...</div>';
     const ready = await waitForFirebaseReady();
-    if (ready && window.getCustomerBroadcasts) {
+    if (!ready) {
+      container.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:20px;">Chưa kết nối được, thử mở lại mục này nhé.</div>';
+      return;
+    }
+    if (window.getCustomerBroadcasts) {
       try {
         const notifications = await window.getCustomerBroadcasts();
         renderNotifications(notifications);
-      } catch (err) { console.error(err); container.innerHTML = ''; }
+      } catch (err) {
+        console.error('Lỗi khi tải thông báo:', err);
+        container.innerHTML = '<div style="text-align:center;color:var(--alert-red);padding:20px;">Có lỗi khi tải thông báo: ' + escapeHtml(err.message || String(err)) + '</div>';
+      }
     }
   }
   function timeAgoLabel(ts){
@@ -2825,10 +2843,11 @@
     try {
       const notifications = await window.getCustomerBroadcasts();
       const lastSeen = parseInt(localStorage.getItem('xn_notifications_last_seen') || '0', 10);
-      const unreadCount = notifications.filter(n => {
+      const unreadOnes = notifications.filter(n => {
         const ts = (n.createdAt && n.createdAt.toMillis) ? n.createdAt.toMillis() : 0;
         return ts > lastSeen;
-      }).length;
+      });
+      const unreadCount = unreadOnes.length;
       const badge = document.getElementById('notifications-badge-count');
       if (badge) {
         if (unreadCount > 0) {
@@ -2838,7 +2857,24 @@
           badge.style.display = 'none';
         }
       }
+      const bannerEl = document.getElementById('new-notification-banner');
+      const bannerDismissedId = sessionStorage.getItem('xn_notification_banner_dismissed');
+      if (bannerEl && unreadOnes.length > 0 && unreadOnes[0].id !== bannerDismissedId) {
+        document.getElementById('new-notification-title').textContent = unreadOnes[0].title || '';
+        document.getElementById('new-notification-body').textContent = unreadOnes[0].body || '';
+        bannerEl.dataset.notifId = unreadOnes[0].id;
+        bannerEl.style.display = 'block';
+      } else if (bannerEl) {
+        bannerEl.style.display = 'none';
+      }
     } catch (err) { console.error(err); }
+  }
+  function dismissNotificationBanner(){
+    const bannerEl = document.getElementById('new-notification-banner');
+    if (bannerEl && bannerEl.dataset.notifId) {
+      sessionStorage.setItem('xn_notification_banner_dismissed', bannerEl.dataset.notifId);
+    }
+    bannerEl.style.display = 'none';
   }
 
   function renderMyBeautyAppointments(appointments){
