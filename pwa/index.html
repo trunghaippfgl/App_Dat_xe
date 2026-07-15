@@ -707,7 +707,7 @@
               </div>
               <div class="field">
                 <span class="field-label" id="dropoff-label">Điểm đến</span>
-                <div class="field-input" id="dropoff-input"><div class="dot" style="background:var(--alert-red)"></div><input type="text" id="dropoff-text" class="native-input" placeholder="Nhập điểm đến..." oninput="window.lastDropoffCoords=null;"><button type="button" class="locate-btn" onclick="openDropoffMapPicker()" title="Chọn trên bản đồ">🗺️</button></div>
+                <div class="field-input" id="dropoff-input"><div class="dot" style="background:var(--alert-red)"></div><input type="text" id="dropoff-text" class="native-input" placeholder="Nhập điểm đến..." oninput="window.lastDropoffCoords=null;"><button type="button" class="locate-btn" onclick="clearDropoffLocation()" title="Xóa điểm đến" style="margin-right:4px;">✕</button><button type="button" class="locate-btn" onclick="openDropoffMapPicker()" title="Chọn trên bản đồ">🗺️</button></div>
               </div>
               <div class="swap-btn" onclick="swapRoute()">⇅</div>
             </div>
@@ -1846,6 +1846,11 @@
     localStorage.removeItem('xn_last_pickup_coords');
     localStorage.removeItem('xn_last_pickup_house_number');
     document.getElementById('pickup-text').focus();
+  }
+  function clearDropoffLocation(){
+    document.getElementById('dropoff-text').value = '';
+    window.lastDropoffCoords = null;
+    document.getElementById('dropoff-text').focus();
   }
 
   /* ---------- CHỌN ĐIỂM ĐẾN TRÊN BẢN ĐỒ ---------- */
