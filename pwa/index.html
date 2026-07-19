@@ -1494,7 +1494,7 @@
   function waitForFirebaseReady(timeoutMs){
     if (window.__firebaseReady) return Promise.resolve(true);
     return new Promise((resolve) => {
-      const timer = setTimeout(() => resolve(false), timeoutMs || 6000);
+      const timer = setTimeout(() => resolve(false), timeoutMs || 18000);
       window.addEventListener('xn-firebase-ready', () => {
         clearTimeout(timer);
         resolve(true);
