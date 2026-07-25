@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yêu cầu xóa tài khoản - Xe Nhà</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #12161D;
+    color: #E8EAED;
+    margin: 0;
+    padding: 24px 16px 60px;
+    line-height: 1.6;
+  }
+  .container { max-width: 560px; margin: 0 auto; }
+  .logo { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  .logo span { color: #FFC107; }
+  h1 { font-size: 20px; margin-top: 24px; }
+  p { color: #B0B6BE; font-size: 15px; }
+  .card {
+    background: #1B212B;
+    border-radius: 14px;
+    padding: 20px;
+    margin-top: 20px;
+    border: 1px solid #2A313D;
+  }
+  .card h2 { font-size: 16px; margin-top: 0; color: #fff; }
+  .card ul { padding-left: 20px; color: #B0B6BE; font-size: 14px; }
+  .card li { margin-bottom: 8px; }
+  label { display: block; margin-top: 14px; font-size: 14px; color: #E8EAED; }
+  input, textarea, select {
+    width: 100%;
+    margin-top: 6px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #2A313D;
+    background: #12161D;
+    color: #fff;
+    font-size: 15px;
+  }
+  textarea { resize: vertical; min-height: 80px; }
+  button {
+    width: 100%;
+    margin-top: 20px;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    background: #FFC107;
+    color: #12161D;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  button:active { opacity: 0.85; }
+  .note {
+    font-size: 13px;
+    color: #8A919C;
+    margin-top: 20px;
+    text-align: center;
+  }
+  .success {
+    display: none;
+    background: #1E2E1E;
+    border: 1px solid #3A5A3A;
+    color: #9BE39B;
+    padding: 16px;
+    border-radius: 10px;
+    margin-top: 20px;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">🚕 Xe<span>Nhà</span></div>
+    <h1>Yêu cầu xóa tài khoản &amp; dữ liệu</h1>
+    <p>Bạn có thể yêu cầu xóa vĩnh viễn tài khoản Xe Nhà cùng toàn bộ dữ liệu cá nhân liên quan bằng cách gửi yêu cầu bên dưới.</p>
+
+    <div class="card">
+      <h2>Dữ liệu sẽ được xóa</h2>
+      <ul>
+        <li>Thông tin cá nhân: họ tên, số điện thoại, địa chỉ</li>
+        <li>Lịch sử chuyến đi, đơn hàng, lịch hẹn đã đặt</li>
+        <li>Tin nhắn trò chuyện với quản lý/tài xế</li>
+        <li>Voucher, mã giới thiệu, địa chỉ đã lưu</li>
+      </ul>
+      <p style="font-size:13px; margin-bottom:0;">Thời gian xử lý: trong vòng 7 ngày làm việc kể từ khi nhận yêu cầu. Một số dữ liệu có thể được lưu trữ thêm theo quy định pháp luật (ví dụ hóa đơn, giao dịch tài chính).</p>
+    </div>
+
+    <div class="card">
+      <h2>Gửi yêu cầu xóa tài khoản</h2>
+      <form id="deleteForm">
+        <label>Số điện thoại đăng ký tài khoản *
+          <input type="tel" id="phone" required placeholder="090xxxxxxx">
+        </label>
+        <label>Họ và tên *
+          <input type="text" id="fullname" required placeholder="Nguyễn Văn A">
+        </label>
+        <label>Loại tài khoản *
+          <select id="accountType" required>
+            <option value="">-- Chọn --</option>
+            <option value="khach_hang">Khách hàng</option>
+            <option value="doi_tac">Đối tác / Tài xế</option>
+          </select>
+        </label>
+        <label>Lý do (không bắt buộc)
+          <textarea id="reason" placeholder="Cho chúng tôi biết lý do bạn muốn xóa tài khoản..."></textarea>
+        </label>
+        <button type="submit">Gửi yêu cầu xóa tài khoản</button>
+      </form>
+      <div class="success" id="successMsg">
+        ✅ Đã ghi nhận yêu cầu. Đội ngũ Xe Nhà sẽ xử lý và xóa dữ liệu trong vòng 7 ngày làm việc. Nếu cần hỗ trợ gấp, vui lòng liên hệ trực tiếp qua Zalo/Hotline của Xe Nhà.
+      </div>
+    </div>
+
+    <p class="note">Xe Nhà · Yêu cầu xóa tài khoản tuân thủ chính sách bảo mật dữ liệu người dùng</p>
+  </div>
+
+<script>
+document.getElementById('deleteForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  // TODO: thay đoạn này bằng gọi Firebase Firestore để lưu yêu cầu xóa tài khoản
+  // vào collection "deletion_requests", sau đó admin xử lý thủ công.
+  document.getElementById('successMsg').style.display = 'block';
+  this.reset();
+});
+</script>
+</body>
+</html>
