@@ -43,3 +43,12 @@
     window.Notification = fakeNotification;
   }
 })();
+// ĐOẠN DEBUG TẠM THỜI - xoá sau khi kiểm tra xong
+setTimeout(function () {
+  var msg = 'Capacitor: ' + (!!window.Capacitor) + '\n' +
+    'Native: ' + (window.Capacitor ? window.Capacitor.isNativePlatform() : 'N/A') + '\n' +
+    'Platform: ' + (window.Capacitor ? window.Capacitor.getPlatform() : 'N/A') + '\n' +
+    'Geolocation plugin: ' + (window.Capacitor && window.Capacitor.Plugins ? !!window.Capacitor.Plugins.Geolocation : 'N/A') + '\n' +
+    'LocalNotifications plugin: ' + (window.Capacitor && window.Capacitor.Plugins ? !!window.Capacitor.Plugins.LocalNotifications : 'N/A');
+  alert(msg);
+}, 2000);
