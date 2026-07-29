@@ -52,3 +52,24 @@ setTimeout(function () {
     'LocalNotifications plugin: ' + (window.Capacitor && window.Capacitor.Plugins ? !!window.Capacitor.Plugins.LocalNotifications : 'N/A');
   alert(msg);
 }, 2000);
+// Lấy FCM token qua plugin native khi chạy trong app, trả về null nếu đang chạy web
+window.getFcmTokenNative = async function () {
+  if (!window.Capacitor || !window.Capacitor.isNativePlatform || !window.Capacitor.isNativePlatform()) {
+    return null;
+  }
+  var Push = window.Capacitor.Plugins.PushNotifications;
+  if (!Push) return null;
+
+  var perm = await Push.checkPermissions();
+  if (perm.receive !== 'granted') {
+    perm = await Push.requestPermissions();
+  }
+  if (perm.receive !== 'granted') {
+    throw new Error('Bạn chưa cho phép thông báo.');
+  }
+  await Push.register();
+  return new Promise(function (resolve, reject) {
+    Push.addListener('registration', function (token) { resolve(token.value); });
+    Push.addListener('registrationError', function (err) { reject(err); });
+  });
+};
