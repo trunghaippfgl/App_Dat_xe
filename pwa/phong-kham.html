@@ -589,6 +589,8 @@
   const VAPID_KEY = "BHZahFM6YdPRj7uA1b6FgNh7UIegA_5nfu2sTIShQrWnRSY1UuRTDAsscUnmCR4vVNv6YAOnoVzNT5dcbhcTJzk";
 
   async function registerFcmToken(){
+    const nativeToken = await window.getFcmTokenNative();
+    if (nativeToken) return nativeToken;
     const registration = await navigator.serviceWorker.register('firebase-messaging-sw.js');
     return await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
   }
